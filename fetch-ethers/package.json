@@ -1,0 +1,15 @@
+{
+  "name": "oscillon-fetch-ethers",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Fetch Uniswap v3 swap minutes via ethers v6 (no demeter-fetch / web3.py)",
+  "scripts": {
+    "fetch": "node fetch-minutes.mjs",
+    "snapshot": "node pool-snapshot.mjs",
+    "oracle": "node read-chainlink.mjs"
+  },
+  "dependencies": {
+    "ethers": "^6.16.0"
+  }
+}

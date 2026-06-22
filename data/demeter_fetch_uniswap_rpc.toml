@@ -1,0 +1,21 @@
+[from]
+chain = "ethereum"
+datasource = "rpc"
+dapp_type = "uniswap"
+start = "2023-03-10"
+end = "2023-03-10"
+
+[to]
+type = "minute"
+save_path = "data"
+skip_existed = true
+
+[from.uniswap]
+pool_address = "0x3416cF6C708Da44DB2624D63ea0AAef7113527C6"
+
+[from.rpc]
+end_point = "https://mainnet.infura.io/v3/744caf0874f84bc8b6ed1bd730368887"
+batch_size = 50
+ignore_position_id = true
+etherscan_api_key = "417UPC2RGUJAY79PIPDJD64KN57HJC1Q7R"
+thread = 1

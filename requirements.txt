@@ -1,0 +1,7 @@
+pandas>=2.0
+numpy>=1.24
+matplotlib>=3.7
+requests>=2.31
+demeter-fetch>=1.3.10
+pytest>=7.0
+web3>=6.0.0
