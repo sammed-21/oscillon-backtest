@@ -8,10 +8,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from .swap_direction import TOKEN0_SYMBOL, TOKEN1_SYMBOL
+from .pool_config import USDC_USDT, PoolConfig, get_pool_config
+from .swap_direction import classify_prepared_swaps
 from .uniswap_math import tick_to_price
 
-DEFAULT_POOL = "0x3416cf6c708da44db2624d63ea0aaef7113527c6"
+DEFAULT_POOL = USDC_USDT.address
 DEFAULT_CHAIN = "ethereum"
 
 
@@ -21,10 +22,13 @@ def load_minute_range(
     pool_address: str,
     start: date,
     end: date,
+    *,
+    pool: PoolConfig | None = None,
 ) -> pd.DataFrame:
+    pool = pool or get_pool_config(pool_address)
     data_dir = Path(data_dir)
     chain = chain.lower()
-    pool_address = pool_address.lower()
+    pool_address = pool.address.lower()
     frames: list[pd.DataFrame] = []
     day = start
     while day <= end:
@@ -39,20 +43,34 @@ def load_minute_range(
     df = pd.concat(frames, ignore_index=True)
     df["timestamp"] = pd.to_datetime(df["timestamp"])
     df = df.sort_values("timestamp").set_index("timestamp")
-    return _enrich(df)
+    return _enrich(df, pool)
 
 
-def _enrich(df: pd.DataFrame) -> pd.DataFrame:
+def _enrich(df: pd.DataFrame, pool: PoolConfig = USDC_USDT) -> pd.DataFrame:
     for col in ("inAmount0", "inAmount1", "netAmount0", "netAmount1"):
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(np.float64)
 
     df["closeTick"] = df["closeTick"].astype(int)
     df["price"] = df["closeTick"].apply(tick_to_price)
-    df["token0"] = TOKEN0_SYMBOL
-    df["token1"] = TOKEN1_SYMBOL
-    df["volume_usd"] = (df["inAmount0"].abs() + df["inAmount1"].abs()) / 1e6
-    # USDC sold into pool (token0 net inflow) — direction filter before oracle merge
-    df["usdc_sold_into_pool"] = df["netAmount0"] > 0
-    df["drain_volume_usd"] = np.where(df["usdc_sold_into_pool"], df["volume_usd"], 0.0)
+    df["pool_price"] = df["price"]
+    classified = classify_prepared_swaps(df.reset_index(), pool=pool).set_index("timestamp")
+    for col in (
+        "token0",
+        "token1",
+        "pool_address",
+        "volume_usd",
+        "drain_size_usd",
+        "restore_size_usd",
+        "swap_size_usd",
+        "drain_volume_usd",
+        "swap_direction",
+        "is_drain",
+        "peg_below",
+        "token0_sold_into_pool",
+        "usdc_sold_into_pool",
+    ):
+        if col in classified.columns:
+            df[col] = classified[col]
+    df["volume_usd"] = df.get("swap_size_usd", 0.0)
     return df

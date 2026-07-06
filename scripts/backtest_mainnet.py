@@ -21,6 +21,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from src.backtest_engine import simulate_swap_row, summarize_backtest
 from src.oscillon_fee import BASE_FEE_BPS, oscillon_fee_bps, select_fee_bps
 from src.swap_direction import TOKEN0_SYMBOL, TOKEN1_SYMBOL, validate_prepared_swaps
 
@@ -45,7 +46,8 @@ def oscillon_fee_piecewise(dev_bps: float, is_drain: bool) -> float:
 
 
 def oscillon_fee_hybrid(dev_bps: float, is_drain: bool) -> float:
-    return select_fee_bps(_safe_dev_bps(dev_bps), is_drain, fee_model="hybrid", k_override=45)
+    # Hook integer path (matches on-chain); truncates vs float select_fee_bps — conservative LP income.
+    return oscillon_fee_bps(int(_safe_dev_bps(dev_bps)), is_drain, k=45, fee_model="hybrid")
 
 
 def oscillon_fee_additive(dev_bps: float, is_drain: bool) -> float:
@@ -63,6 +65,13 @@ def oscillon_fee_no_threshold(dev_bps: float, is_drain: bool) -> float:
 
 
 def paper_minimum_fee(dev_bps: float, is_drain: bool, safety: float = 1.05) -> float:
+    """
+    Academic reference only — NOT a deployable fee policy.
+
+    Sets fee = max(dev × safety, quadratic) on drain swaps. Because safety > 1,
+    fee often exceeds dev_bps, zeroing LVR and inflating LP income beyond the
+    arb spread. Use only as an oracle ceiling benchmark, not vs Oscillon hybrid.
+    """
     max_fee = 50.0
     if not is_drain:
         return BASE_FEE_BPS
@@ -124,7 +133,7 @@ def build_charts(
     ax1.plot(
         dev_range,
         [paper_minimum_fee(d, True) for d in dev_range],
-        label="Paper minimum fee",
+        label="Ref: dev×1.05 ceiling (not deployable)",
         color="#00A388",
         linewidth=2,
     )
@@ -138,39 +147,40 @@ def build_charts(
     ax1.set_ylim(0, 25)
     ax1.grid(True, alpha=0.3)
 
-    # Chart 2: LVR distribution
+    # Chart 2: LVR distribution (skip empty series — density=True divides by zero)
     ax2 = fig.add_subplot(gs[0, 1])
     static_lvr = all_results["Static (current)"]["lvr"]
     oscillon_lvr = all_results["Oscillon hybrid"]["lvr"]
-    paper_lvr = all_results["Paper minimum fee"]["lvr"]
-    ax2.hist(
-        static_lvr[static_lvr > 0],
-        bins=50,
-        alpha=0.5,
-        label="Static",
-        color="gray",
-        density=True,
-    )
-    ax2.hist(
-        oscillon_lvr[oscillon_lvr > 0],
-        bins=50,
-        alpha=0.5,
-        label="Oscillon hybrid",
-        color="#4F5FD4",
-        density=True,
-    )
-    ax2.hist(
-        paper_lvr[paper_lvr > 0],
-        bins=50,
-        alpha=0.5,
-        label="Paper minimum",
-        color="#00A388",
-        density=True,
-    )
+    ref_key = "Ref: dev×1.05 ceiling"
+    paper_lvr = all_results[ref_key]["lvr"] if ref_key in all_results else None
+    lvr_series = [
+        ("Static", static_lvr[static_lvr > 0], "gray"),
+        ("Oscillon hybrid", oscillon_lvr[oscillon_lvr > 0], "#4F5FD4"),
+    ]
+    if paper_lvr is not None:
+        lvr_series.append(("Ref dev×1.05", paper_lvr[paper_lvr > 0], "#00A388"))
+    plotted = False
+    for label, data, color in lvr_series:
+        if len(data) == 0:
+            continue
+        ax2.hist(data, bins=50, alpha=0.5, label=label, color=color, density=True)
+        plotted = True
+    if not plotted:
+        ax2.text(
+            0.5,
+            0.5,
+            "No positive LVR in this period\n(calm regime — expected)",
+            ha="center",
+            va="center",
+            transform=ax2.transAxes,
+            fontsize=11,
+            color="gray",
+        )
     ax2.set_xlabel("LVR per Swap ($)")
     ax2.set_ylabel("Density")
     ax2.set_title("LVR Distribution: How Much Arb Extracts Per Swap")
-    ax2.legend(fontsize=9)
+    if plotted:
+        ax2.legend(fontsize=9)
     ax2.set_xlim(0, 500)
     ax2.grid(True, alpha=0.3)
 
@@ -182,7 +192,7 @@ def build_charts(
         "Oscillon piecewise (3-zone)": "#6366F1",
         "Oscillon K=45 (quadratic)": "#818CF8",
         "Oscillon no threshold": "#A5B4FC",
-        "Paper minimum fee": "#00A388",
+        "Ref: dev×1.05 ceiling": "#00A388",
     }
     for model_name, df in all_results.items():
         cum_income = df["lp_income"].cumsum()
@@ -210,7 +220,6 @@ def build_charts(
         "Oscillon hybrid",
         "Oscillon piecewise (3-zone)",
         "Oscillon K=45 (quadratic)",
-        "Paper minimum fee",
     ]
     ordered_models = [m for m in ordered_models if m in all_results]
     width = 0.8 / max(len(ordered_models), 1)
@@ -352,18 +361,34 @@ def main() -> None:
     )
     p.add_argument("--show-chart", action="store_true")
     p.add_argument("--timeline-only", action="store_true", help="Only build timeline chart/CSV")
+    p.add_argument(
+        "--apply-routing",
+        action="store_true",
+        help="Scale drain volume by elastic routing model when fee > competitor (default: off)",
+    )
+    p.add_argument("--volume-eta", type=float, default=2.0, help="Routing elasticity if --apply-routing")
     args = p.parse_args()
 
     swaps = pd.read_csv(args.prepared)
     swaps["timestamp"] = pd.to_datetime(swaps["timestamp"])
     swaps, mismatches = validate_prepared_swaps(swaps)
+
+    oracle_leg = str(swaps["oracle_leg"].iloc[0]) if "oracle_leg" in swaps.columns else "token0"
+    oracle_asset = (
+        str(swaps["oracle_asset"].iloc[0])
+        if "oracle_asset" in swaps.columns
+        else ("USDC" if oracle_leg == "token0" else "USDT")
+    )
+    drain_net_col = "netAmount1" if oracle_leg == "token1" else "netAmount0"
+
     if mismatches:
         print(
             f"WARNING: fixed {mismatches:,} is_drain rows "
-            f"(was using wrong direction; now peg_below & {TOKEN0_SYMBOL} net inflow)"
+            f"(oracle_leg={oracle_leg}: peg_below & {oracle_asset} in via {drain_net_col})"
         )
     ts = pd.to_datetime(swaps["timestamp"])
     period_days = max((ts.max() - ts.min()).total_seconds() / 86400.0, 1.0)
+    print(f"Oracle leg: {oracle_leg} ({oracle_asset}/USD Chainlink — no mixed feeds)")
     print(f"Pool tokens: token0={TOKEN0_SYMBOL}, token1={TOKEN1_SYMBOL}")
     print(f"Backtest period: {period_days:.1f} days")
     drain_vol_col = "drain_size_usd" if "drain_size_usd" in swaps.columns else "swap_size_usd"
@@ -378,6 +403,12 @@ def main() -> None:
     print(f"Timeline data saved: {args.timeline_csv} ({len(timeline):,} rows)")
     build_timeline_chart(timeline, chart_out=args.timeline_out, show_chart=args.show_chart)
 
+    if oracle_leg == "token1":
+        print(
+            "\nNOTE: USDT oracle leg is counterfactual (not deployed). "
+            "Use USDC-oracle prepared files for on-chain hook / auditor headlines."
+        )
+
     if args.timeline_only:
         return
 
@@ -388,95 +419,88 @@ def main() -> None:
         "Oscillon piecewise (3-zone)": oscillon_fee_piecewise,
         "Oscillon K=45 (quadratic)": oscillon_fee_k45,
         "Oscillon no threshold": oscillon_fee_no_threshold,
-        "Paper minimum fee": paper_minimum_fee,
+    }
+    reference_models = {
+        "Ref: dev×1.05 ceiling": paper_minimum_fee,
     }
 
+    print("\n" + "=" * 70)
+    print("METHODOLOGY")
+    print("=" * 70)
+    print(
+        "• LP income + LVR = depeg spread on each drain swap (when fee ≤ dev).\n"
+        "  Fee models SPLIT the same spread — totals match across Oscillon variants.\n"
+        "  Compare LP Capture %, not LP+LVR sum.\n"
+        f"• Volume Lost: {'APPLIED to drain volume (routing model)' if args.apply_routing else 'REPORTED ONLY — does not change LP/LVR unless --apply-routing'}\n"
+        "• Ref dev×1.05: academic ceiling (fee > dev → LVR=0). Not deployable.\n"
+        "• Rows with swap_size_usd < $100 dropped at prepare time (see prepare_data --min-swap-usd)."
+    )
+
     all_results: dict[str, pd.DataFrame] = {}
-    for model_name, fee_fn in models.items():
+    for model_name, fee_fn in {**models, **reference_models}.items():
         records: list[dict] = []
         for _, swap in swaps.iterrows():
-            dev = _safe_dev_bps(swap["dev_bps"])
-            drain = bool(swap["is_drain"])
-            drain_size = float(swap.get("drain_size_usd", swap.get("swap_size_usd", 0)))
-            restore_size = float(swap.get("restore_size_usd", 0))
-            total_size = drain_size + restore_size
-
-            if drain:
-                fee_drain = fee_fn(dev, True)
-                fee_restore = BASE_FEE_BPS
-                lp_income = (
-                    drain_size * fee_drain / 10000 + restore_size * fee_restore / 10000
-                )
-                fee = fee_drain
-                if dev > 0:
-                    lvr = max(0.0, drain_size * (dev - fee_drain) / 10000)
-                else:
-                    lvr = 0.0
-                volume_lost = (
-                    drain_size
-                    if (fee_drain > args.curve_fee_bps and dev < 50)
-                    else 0.0
-                )
-            else:
-                fee = fee_fn(dev, False)
-                lp_income = total_size * fee / 10000
-                lvr = 0.0
-                volume_lost = 0.0
-
-            arb_profit = lvr
-
             records.append(
-                {
-                    "timestamp": swap.get("timestamp"),
-                    "dev_bps": dev,
-                    "is_drain": drain,
-                    "swap_size": total_size,
-                    "drain_size": drain_size,
-                    "restore_size": restore_size,
-                    "fee_bps": fee,
-                    "lp_income": lp_income,
-                    "lvr": lvr,
-                    "arb_profit": arb_profit,
-                    "volume_lost": volume_lost,
-                }
+                simulate_swap_row(
+                    swap,
+                    fee_fn,
+                    curve_fee_bps=args.curve_fee_bps,
+                    apply_routing=args.apply_routing,
+                    volume_eta=args.volume_eta,
+                )
             )
 
         all_results[model_name] = pd.DataFrame(records)
-        print(f"Processed {model_name}: {len(records):,} swaps")
+        tag = " [reference]" if model_name in reference_models else ""
+        print(f"Processed {model_name}{tag}: {len(records):,} swaps")
 
     print("\n" + "=" * 70)
     print("BACKTEST RESULTS SUMMARY")
     print("=" * 70)
 
     summary_rows = []
+    production_names = list(models.keys())
     for model_name, df in all_results.items():
-        total_volume = df["swap_size"].sum()
-        total_lp_income = df["lp_income"].sum()
-        total_lvr = df["lvr"].sum()
-        total_arb = df["arb_profit"].sum()
-        volume_lost = df["volume_lost"].sum()
-        volume_lost_pct = (volume_lost / total_volume * 100) if total_volume > 0 else 0.0
-        total_value = total_lp_income + total_arb
-        lp_capture_pct = (total_lp_income / total_value * 100) if total_value > 0 else 0.0
-        apr = (
-            (total_lp_income / args.tvl) * (365 / period_days) * 100
-            if args.tvl > 0
-            else 0.0
-        )
-
+        s = summarize_backtest(df, tvl=args.tvl, period_days=period_days)
+        is_ref = model_name in reference_models
         summary_rows.append(
             {
-                "Model": model_name,
-                "LP Income ($)": f"${total_lp_income:,.0f}",
-                "LVR ($)": f"${total_lvr:,.0f}",
-                "LP Capture %": f"{lp_capture_pct:.1f}%",
-                "Volume Lost %": f"{volume_lost_pct:.1f}%",
-                "Stress APR": f"{apr:.2f}%",
+                "Model": model_name + (" *" if is_ref else ""),
+                "LP Income ($)": f"${s['lp_income_usd']:,.0f}",
+                "LVR ($)": f"${s['lvr_usd']:,.0f}",
+                "Spread (LP+LVR)": f"${s['spread_captured_usd']:,.0f}",
+                "LP Capture %": f"{s['lp_capture_pct']:.1f}%",
+                "Volume Lost %": f"{s['volume_lost_pct']:.1f}%",
+                "Stress APR": f"{s['stress_apr']:.2f}%",
             }
         )
 
     summary = pd.DataFrame(summary_rows)
     print(summary.to_string(index=False))
+    print("\n* Reference model only — fee often exceeds depeg severity (not deployable).")
+    print("  Production comparison: use LP Capture % and LP Income; Spread column should")
+    print("  match across Oscillon variants when fees stay below dev_bps.")
+
+    # Large-depeg capture honesty check
+    base_df = all_results["Static (current)"]
+    large_mask = base_df["dev_bps"] >= 30
+    if large_mask.any():
+        static_large = base_df.loc[large_mask]
+        hyb_df = all_results["Oscillon hybrid"].loc[large_mask]
+        static_cap = (
+            static_large["lp_income"].sum()
+            / (static_large["lp_income"].sum() + static_large["lvr"].sum())
+            * 100
+        )
+        hyb_cap = (
+            hyb_df["lp_income"].sum()
+            / (hyb_df["lp_income"].sum() + hyb_df["lvr"].sum())
+            * 100
+        )
+        print(
+            f"\nLarge depeg (30+ bps): Oscillon hybrid captures {hyb_cap:.1f}% of spread "
+            f"vs static {static_cap:.1f}% — not 100%; most LVR remains on table."
+        )
 
     print("\n" + "=" * 70)
     print("RESULTS BY MARKET CONDITION")
@@ -490,9 +514,13 @@ def main() -> None:
         "Large depeg (30+ bps)": (30, 999),
     }
 
-    base_df = all_results["Static (current)"]
     total_swaps = len(base_df)
     for cond_name, (low, high) in conditions.items():
+        n_in_cond = ((base_df["dev_bps"] >= low) & (base_df["dev_bps"] < high)).sum()
+        pct = (n_in_cond / total_swaps * 100) if total_swaps > 0 else 0.0
+        if n_in_cond == 0:
+            print(f"\n  {cond_name}: 0 swaps (no observations in this depeg band)")
+            continue
         print(f"\n  {cond_name}")
         print(f"  {'Model':<30} {'LP Income':>12} {'LVR':>12} {'Capture%':>10}")
         print(f"  {'-' * 64}")
@@ -508,8 +536,6 @@ def main() -> None:
             cap = (lp_inc / total * 100) if total > 0 else 0.0
             print(f"  {model_name:<30} ${lp_inc:>10,.0f} ${lvr:>10,.0f} {cap:>9.1f}%")
 
-        n_in_cond = ((base_df["dev_bps"] >= low) & (base_df["dev_bps"] < high)).sum()
-        pct = (n_in_cond / total_swaps * 100) if total_swaps > 0 else 0.0
         print(f"  ({n_in_cond:,} swaps = {pct:.1f}% of all swaps)")
 
     build_charts(all_results, chart_out=args.chart_out, show_chart=args.show_chart)

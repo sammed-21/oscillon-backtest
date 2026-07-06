@@ -12,8 +12,12 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from .oscillon_fee import FeeContext, fee_bps, select_fee_pips
+from .backtest_engine import safe_dev_bps
+from .oscillon_fee import BASE_FEE_BPS, FeeContext, fee_bps, select_fee_pips
+from .swap_direction import validate_prepared_swaps
 from .volume_model import retained_volume_fraction
+
+VOLUME_LOSS_DEV_CAP_BPS = 50.0
 
 
 @dataclass
@@ -34,7 +38,7 @@ def oscillon_fee_bps(
     *,
     pool_liquidity: int = 10**18,
 ) -> float:
-    """Fee in bps for a given K (wraps oscillon_fee.py)."""
+    """Fee in bps for a given K (hook integer path via pips)."""
     pips = select_fee_pips(
         FeeContext(
             depeg_bps=int(depeg_bps),
@@ -59,32 +63,37 @@ def evaluate_k_on_prepared(
 ) -> KScoreResult:
     """
     Aggregate score for one K over prepared_swaps rows (minute-level).
-
-    - lp_revenue: fees on retained volume
-    - lvr: max(0, dev - fee) × volume on drain minutes (arb extraction proxy)
-    - volume_loss: swap_size × (1 - retain) when routers skip high-fee pool
     """
+    fixed, _ = validate_prepared_swaps(df)
     lp_revenue = 0.0
     lvr = 0.0
     volume_loss = 0.0
     fee_sum = 0.0
     n = 0
 
-    for _, row in df.iterrows():
-        dev = int(row["dev_bps"])
+    for _, row in fixed.iterrows():
+        dev = safe_dev_bps(row["dev_bps"])
         drain = bool(row["is_drain"])
-        size = float(row.get("swap_size_usd", 0.0))
-        if size <= 0:
+        drain_size = float(row.get("drain_size_usd", row.get("swap_size_usd", 0.0)))
+        restore_size = float(row.get("restore_size_usd", 0.0))
+        total_size = drain_size + restore_size
+        if total_size <= 0:
             continue
 
-        f_bps = oscillon_fee_bps(dev, drain, k, pool_liquidity=pool_liquidity)
+        f_bps = oscillon_fee_bps(int(dev), drain, k, pool_liquidity=pool_liquidity)
         retain = retained_volume_fraction(f_bps, competitor_fee_bps, eta=volume_eta)
-        eff_size = size * retain
+        eff_drain = drain_size * retain
+        eff_restore = restore_size * retain
 
-        lp_revenue += eff_size * (f_bps / 10_000.0)
-        if drain and dev > 0:
-            lvr += max(0.0, eff_size * (dev - f_bps) / 10_000.0)
-        volume_loss += size * (1.0 - retain)
+        if drain:
+            lp_revenue += eff_drain * f_bps / 10_000 + eff_restore * BASE_FEE_BPS / 10_000
+            if dev > 0:
+                lvr += max(0.0, eff_drain * (dev - f_bps) / 10_000)
+            if f_bps > competitor_fee_bps and dev < VOLUME_LOSS_DEV_CAP_BPS:
+                volume_loss += drain_size * (1.0 - retain)
+        else:
+            lp_revenue += (eff_drain + eff_restore) * f_bps / 10_000
+
         fee_sum += f_bps
         n += 1
 

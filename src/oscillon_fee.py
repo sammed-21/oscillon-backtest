@@ -43,6 +43,77 @@ class FeeContext:
     surcharge_model: SurchargeModel = "hybrid"
 
 
+def _piecewise_surcharge_bps_int(dev_bps: float) -> int:
+    """Integer surcharge — matches OscillonFeePolicy.sol piecewiseFeeBps."""
+    dev = int(dev_bps)
+    if dev <= QUADRATIC_DEAD_BAND:
+        return 1
+    if dev <= 20:
+        excess = dev - QUADRATIC_DEAD_BAND
+        return (10_000 + 204 * excess * excess) // 10_000
+    fee_at_20 = 10_000 + 204 * 17 * 17
+    linear = 11 * (dev - 20) * 100
+    return min((fee_at_20 + linear) // 10_000, int(MAX_FEE_BPS))
+
+
+def _quadratic_surcharge_bps_int(
+    dev_bps: float,
+    k: int = QUADRATIC_K_DEFAULT,
+    using_fallback: bool = False,
+) -> int:
+    d = max(0, int(dev_bps) - QUADRATIC_DEAD_BAND)
+    quad = 1 + (k * d * d) // 10_000
+    quad = min(quad, int(MAX_FEE_BPS))
+    if using_fallback and dev_bps < 15:
+        increase = quad - 1 if quad > 1 else 0
+        quad = 1 + increase // 2
+    return quad
+
+
+def _hybrid_surcharge_bps_int(
+    dev_bps: float,
+    k: int = QUADRATIC_K_DEFAULT,
+    using_fallback: bool = False,
+) -> int:
+    if dev_bps == 0:
+        return 1
+    return max(
+        _piecewise_surcharge_bps_int(dev_bps),
+        _quadratic_surcharge_bps_int(dev_bps, k, using_fallback),
+    )
+
+
+def _surcharge_for_model_int(
+    dev_bps: float,
+    k: int,
+    fee_model: FeeModel,
+    using_fallback: bool,
+) -> int:
+    if fee_model == "piecewise":
+        return _piecewise_surcharge_bps_int(dev_bps)
+    if fee_model == "quadratic":
+        return _quadratic_surcharge_bps_int(dev_bps, k, using_fallback)
+    return _hybrid_surcharge_bps_int(dev_bps, k, using_fallback)
+
+
+def select_fee_pips_hook(ctx: FeeContext) -> int:
+    """On-chain integer fee path (base + surcharge pips)."""
+    if not ctx.is_drain:
+        if ctx.in_restore_window and ctx.depeg_bps == 0:
+            return RESTORE_FEE_PIPS
+        return BASE_FEE_PIPS
+
+    if ctx.depeg_bps < SMALL_DEPEG_BPS:
+        return BASE_FEE_PIPS
+
+    k = ctx.k_override if ctx.k_override is not None else quadratic_k(ctx.pool_liquidity)
+    surcharge_bps = _surcharge_for_model_int(
+        ctx.depeg_bps, k, ctx.fee_model, ctx.using_fallback
+    )
+    total_bps = min(int(BASE_FEE_BPS) + surcharge_bps, int(MAX_FEE_BPS))
+    return min(total_bps * 100, MAX_FEE_PIPS)
+
+
 def _piecewise_surcharge_bps(dev_bps: float) -> float:
     """Surcharge only — float math for smooth curves; pips path rounds at conversion."""
     d = float(dev_bps)
@@ -157,24 +228,7 @@ def quadratic_k(pool_liquidity: int) -> int:
 
 
 def select_fee_pips(ctx: FeeContext) -> int:
-    if not ctx.is_drain:
-        if ctx.in_restore_window and ctx.depeg_bps == 0:
-            return RESTORE_FEE_PIPS
-        return BASE_FEE_PIPS
-
-    if ctx.depeg_bps < SMALL_DEPEG_BPS:
-        return BASE_FEE_PIPS
-
-    k = ctx.k_override if ctx.k_override is not None else quadratic_k(ctx.pool_liquidity)
-    raw = select_fee_bps(
-        ctx.depeg_bps,
-        True,
-        k_override=k,
-        fee_model=ctx.fee_model,
-        using_fallback=ctx.using_fallback,
-        surcharge_model=ctx.surcharge_model,
-    )
-    return min(int(round(raw * 100)), MAX_FEE_PIPS)
+    return select_fee_pips_hook(ctx)
 
 
 def fee_bps(pips: int) -> float:

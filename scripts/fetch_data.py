@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import subprocess
+import sys
 import time
 from datetime import date, timedelta
 from pathlib import Path
@@ -15,17 +16,54 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
-POOL = "0x3416cF6C708Da44DB2624D63ea0AAef7113527C6"
-DUNE_SQL = """
+from src.pool_config import USDC_USDT, get_pool_config
+
+DEFAULT_POOL = USDC_USDT.address
+CHAINLINK_FEEDS = {
+    "usdc": {
+        "address": "0x8fffffd4afb6115b954bd326cbe7b4ba576818f6",
+        "price_col": "usdc_price",
+        "dune_chain": "ethereum",
+    },
+    "usdt": {
+        "address": "0x3e7d1eab13ad0104d2750b8863b489d65364e32d",
+        "price_col": "usdt_price",
+        "dune_chain": "ethereum",
+    },
+    "usde": {
+        "address": "0xa569d910839Ae8865Da8F8e70FfFb0cBA869F961",
+        "price_col": "usde_price",
+        "dune_chain": "ethereum",
+    },
+    "pyusd": {
+        "address": "0x8f1dF6D7F2db73eECE86a18b4381F4707b918FB1",
+        "price_col": "pyusd_price",
+        "dune_chain": "ethereum",
+    },
+    "fdusd": {
+        "address": "0x390180e80058A8499930F0c13963AD3E0d86Bfc9",
+        "price_col": "fdusd_price",
+        "dune_chain": "bnb",
+    },
+}
+
+DUNE_CHAINLINK_TABLE = {
+    "ethereum": "chainlink_ethereum.EACAggregatorProxy_v2_call_latestAnswer",
+    "bnb": "chainlink_bnb.EACAggregatorProxy_v2_call_latestAnswer",
+}
+
+DUNE_SQL_CHAINLINK = """
 SELECT
     call_block_time AS minute,
-    output_0 / 1e8 AS usdc_price
-FROM chainlink_ethereum.EACAggregatorProxy_v2_call_latestAnswer
-WHERE contract_address = 0x8fffffd4afb6115b954bd326cbe7b4ba576818f6
+    output_0 / 1e8 AS {price_col}
+FROM {dune_table}
+WHERE contract_address = {contract_address}
 AND call_success = true
-AND call_block_time >= TIMESTAMP '{start_date}'
-AND call_block_time < TIMESTAMP '{end_exclusive}'
+AND call_block_time >= TIMESTAMP '{{start_date}}'
+AND call_block_time < TIMESTAMP '{{end_exclusive}}'
 ORDER BY call_block_time
 """
 
@@ -65,20 +103,34 @@ def fetch_dune_chainlink(
     end_date: str,
     out_csv: Path,
     *,
+    oracle_asset: str = "usdc",
     chunk_days: int = 7,
     execute_timeout: int = 300,
     poll_timeout: int = 120,
 ) -> None:
+    asset = oracle_asset.lower()
+    if asset not in CHAINLINK_FEEDS:
+        raise ValueError(f"Unknown oracle asset {oracle_asset!r}; use {list(CHAINLINK_FEEDS)}")
+    feed = CHAINLINK_FEEDS[asset]
+    dune_chain = feed.get("dune_chain", "ethereum")
+    dune_table = DUNE_CHAINLINK_TABLE.get(dune_chain)
+    if not dune_table:
+        raise ValueError(f"No Dune table for chain {dune_chain!r}")
+    sql_template = DUNE_SQL_CHAINLINK.format(
+        price_col=feed["price_col"],
+        contract_address=feed["address"],
+        dune_table=dune_table,
+    )
     session = _dune_session()
     headers = {"X-DUNE-API-KEY": api_key}
     frames: list[pd.DataFrame] = []
 
     chunks = list(_date_chunks(start_date, end_date, chunk_days))
-    print(f"Dune oracle: {len(chunks)} chunk(s), {chunk_days} day(s) each")
+    print(f"Dune oracle ({asset.upper()}): {len(chunks)} chunk(s), {chunk_days} day(s) each")
 
     for i, (chunk_start, chunk_end) in enumerate(chunks, 1):
         end_ex = _end_exclusive(chunk_end)
-        sql = DUNE_SQL.format(start_date=chunk_start, end_exclusive=end_ex)
+        sql = sql_template.format(start_date=chunk_start, end_exclusive=end_ex)
         print(f"  Chunk {i}/{len(chunks)}: {chunk_start} → {chunk_end} ...")
 
         execute_resp = session.post(
@@ -136,6 +188,8 @@ def write_bigquery_config(
     save_path: Path,
     auth_file: str,
     config_path: Path,
+    pool_address: str = DEFAULT_POOL,
+    chain: str = "ethereum",
 ) -> None:
     try:
         import toml
@@ -146,12 +200,12 @@ def write_bigquery_config(
 
     config = {
         "from": {
-            "chain": "ethereum",
+            "chain": chain if chain != "bnb" else "bsc",
             "datasource": "big_query",
             "dapp_type": "uniswap",
             "start": start_date,
             "end": end_date,
-            "uniswap": {"pool_address": POOL},
+            "uniswap": {"pool_address": pool_address},
             "big_query": {"auth_file": auth_file},
         },
         "to": {
@@ -175,11 +229,29 @@ def _dune_key_from_env() -> str:
     return ""
 
 
+def _bq_auth_from_env() -> str:
+    env_path = Path(__file__).resolve().parents[1] / ".env"
+    if not env_path.exists():
+        return ""
+    for line in env_path.read_text().splitlines():
+        line = line.strip()
+        if line.startswith("BIGQUERY_AUTH_FILE="):
+            return line.split("=", 1)[1].strip().strip('"').strip("'")
+    return ""
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description="Fetch oracle + Uniswap swaps (BigQuery mode)")
     p.add_argument("--start-date", default="2023-03-10")
     p.add_argument("--end-date", default="2023-03-15")
-    p.add_argument("--oracle-out", default="data/chainlink_usdc_2023.csv")
+    p.add_argument("--pool-preset", default="usdc-usdt", help="usdc-usdt | usde-usdt | pyusd-usdc | fdusd-usdc-bsc")
+    p.add_argument("--oracle-out", default="")
+    p.add_argument(
+        "--oracle-asset",
+        choices=sorted(CHAINLINK_FEEDS),
+        default="usdc",
+        help="Chainlink feed to fetch (separate per asset)",
+    )
     p.add_argument("--skip-dune", action="store_true", help="Skip Chainlink oracle fetch")
     p.add_argument("--dune-only", action="store_true", help="Fetch oracle only, skip BigQuery")
     p.add_argument("--dune-api-key", default="", help="Dune API key")
@@ -201,6 +273,12 @@ def main() -> None:
         help="Where to write generated demeter-fetch config",
     )
     args = p.parse_args()
+    pool = get_pool_config(args.pool_preset)
+    oracle_out = args.oracle_out or (
+        f"data/chainlink_{args.oracle_asset}_{args.start_date[:4]}.csv"
+        if args.start_date[:4] == args.end_date[:4]
+        else f"data/chainlink_{args.oracle_asset}_{args.start_date[:4]}_{args.end_date[:7]}.csv"
+    )
 
     dune_key = args.dune_api_key or _dune_key_from_env()
     if not args.skip_dune:
@@ -212,15 +290,20 @@ def main() -> None:
             api_key=dune_key,
             start_date=args.start_date,
             end_date=args.end_date,
-            out_csv=Path(args.oracle_out),
+            out_csv=Path(oracle_out),
+            oracle_asset=args.oracle_asset,
             chunk_days=max(1, args.dune_chunk_days),
         )
 
     if args.dune_only:
         return
 
-    if not args.bigquery_auth_file:
-        raise SystemExit("--bigquery-auth-file is required unless --dune-only or --skip-dune with no BQ")
+    bq_auth = args.bigquery_auth_file or _bq_auth_from_env()
+    if not bq_auth:
+        raise SystemExit(
+            "--bigquery-auth-file is required unless --dune-only. "
+            "Set BIGQUERY_AUTH_FILE in .env or pass the flag."
+        )
 
     save_path = Path(args.pool_out_dir)
     config_path = Path(args.config_out)
@@ -228,8 +311,10 @@ def main() -> None:
         start_date=args.start_date,
         end_date=args.end_date,
         save_path=save_path,
-        auth_file=args.bigquery_auth_file,
+        auth_file=bq_auth,
         config_path=config_path,
+        pool_address=pool.address,
+        chain=pool.chain,
     )
 
     demeter = Path(__file__).resolve().parents[1] / ".venv/bin/demeter-fetch"

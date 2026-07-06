@@ -50,21 +50,31 @@ def main() -> None:
     from src.volume_model import retained_volume_fraction
 
     def eval_model(name: str, fee_model: str, k: int | None) -> dict:
+        from src.swap_direction import validate_prepared_swaps
+
+        fixed, _ = validate_prepared_swaps(df)
         lp_rev = lvr = vol_loss = 0.0
-        for _, row in df.iterrows():
+        for _, row in fixed.iterrows():
             dev = int(row["dev_bps"])
             drain = bool(row["is_drain"])
-            size = float(row.get("swap_size_usd", 0))
-            if size <= 0:
+            drain_size = float(row.get("drain_size_usd", row.get("swap_size_usd", 0)))
+            restore_size = float(row.get("restore_size_usd", 0))
+            total_size = drain_size + restore_size
+            if total_size <= 0:
                 continue
             ctx = FeeContext(dev, drain, k_override=k, fee_model=fee_model)  # type: ignore
             f = fee_bps(select_fee_pips(ctx))
             retain = retained_volume_fraction(f, args.competitor_fee_bps)
-            eff = size * retain
-            lp_rev += eff * (f / 10_000)
-            if drain and dev > 0:
-                lvr += max(0.0, eff * (dev - f) / 10_000)
-            vol_loss += size * (1 - retain)
+            eff_drain = drain_size * retain
+            eff_restore = restore_size * retain
+            if drain:
+                lp_rev += eff_drain * f / 10_000 + eff_restore * 3.0 / 10_000
+                if dev > 0:
+                    lvr += max(0.0, eff_drain * (dev - f) / 10_000)
+                if f > args.competitor_fee_bps and dev < 50:
+                    vol_loss += drain_size * (1 - retain)
+            else:
+                lp_rev += (eff_drain + eff_restore) * f / 10_000
         score = lp_rev - args.lambda_lvr * lvr - args.lambda_volume * vol_loss
         return {
             "model": name,

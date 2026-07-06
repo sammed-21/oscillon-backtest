@@ -5,7 +5,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.oscillon_fee import FeeContext, select_fee_bps, select_fee_pips
+from src.oscillon_fee import FeeContext, fee_bps, select_fee_bps, select_fee_pips
 
 
 def test_hybrid_monotonic_drain():
@@ -22,6 +22,11 @@ def test_hybrid_beats_piecewise_at_high_depeg():
     )
 
 
-def test_hybrid_pips_matches_bps():
+def test_hybrid_pips_matches_hook_bps():
     ctx = FeeContext(depeg_bps=30, is_drain=True, fee_model="hybrid", k_override=45)
-    assert abs(select_fee_pips(ctx) / 100.0 - select_fee_bps(30, True, fee_model="hybrid")) < 0.02
+    assert select_fee_pips(ctx) == 1000  # 10.00 bps hook integer
+
+
+def test_hybrid_hook_fee_at_6_bps():
+    ctx = FeeContext(depeg_bps=6, is_drain=True, fee_model="hybrid", k_override=45)
+    assert fee_bps(select_fee_pips(ctx)) == 4.0

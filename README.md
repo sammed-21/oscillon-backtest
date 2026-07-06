@@ -51,7 +51,20 @@ python3 scripts/calc_apr.py --days 1 --capital 100000 --tvl 2500000
 
 Solidity parity: `BASE_FEE_PIPS = 300` + `OscillonFeePolicy.hybridFeeBps()` surcharge.
 
-## Backtest Methodology Notes
+## Verified event replays
+
+```bash
+python3 scripts/run_verified_backtests.py   # March 2023 USDC (in-repo data)
+python3 -m pytest tests/ -q
+```
+
+Results: `output/verified_backtest_results.md`
+
+| Event | Prepared data | Status |
+|-------|---------------|--------|
+| USDC Mar 2023 (SVB) | `data/prepared_swaps_2023-03.csv` | ✅ in repo |
+| USDe Oct 2025 | `data/prepared_swaps_usde_2025-10.csv` | fetch BigQuery first |
+
 
 - Data source: `backtest_mainnet.py` only (not `depeg_analysis.py` for headline numbers)
 - Base fee: 3 bps (`BASE_FEE_BPS = 3.0`)
@@ -60,6 +73,88 @@ Solidity parity: `BASE_FEE_PIPS = 300` + `OscillonFeePolicy.hybridFeeBps()` surc
 - Swap size: drain leg only (`netAmount0.clip(lower=0) / 1e6` for USDC/USDT pool)
 - APR: annualised period return × `(365 / days)` — label as **stress period APR**, not normal APR
 - Solidity parity: Python uses identical base + surcharge architecture as `OscillonFeePolicy.sol`
+
+### Publishing limitations (conservative direction)
+
+These are documented, accepted biases — they understate surcharge/LP income, not overstate it:
+
+| Limitation | Effect on headline numbers |
+|------------|---------------------------|
+| Some swap replays from Infura RPC, not BigQuery | +10% drain volume → ~0.71 → ~0.78 bps/year (immaterial) |
+| Backtest uses hook integer fees, not float | Slightly lower LP income (e.g. dev=7: 4.0 vs 4.33 bps) |
+| Oracle `merge_asof` backward, no staleness cap | Rare gaps understate `dev_bps` during fast depegs |
+
+### USDC vs USDT oracle legs (separate — never mixed)
+
+| Leg | Oracle feed | Drain rule | Use for |
+|-----|-------------|------------|---------|
+| **USDC** (`token0`) | Chainlink USDC/USD | `netAmount0 > 0` + peg below | **Deployed hook / auditor headlines** |
+| **USDT** (`token1`) | Chainlink USDT/USD | `netAmount1 > 0` + peg below | Counterfactual only — not deployed |
+
+Run both legs end-to-end (separate prepared CSVs, charts, timelines):
+
+```bash
+python3 scripts/run_oracle_leg_pipeline.py --start 2026-01-01 --end 2026-06-30
+```
+
+Outputs:
+- `data/prepared_swaps_2026_h1_usdc_oracle.csv` + `output/backtest_2026_h1_usdc_oracle.png`
+- `data/prepared_swaps_2026_h1_usdt_oracle.csv` + `output/backtest_2026_h1_usdt_oracle.png`
+- `output/oracle_leg_comparison_2026_h1.md`
+
+Single leg only:
+
+```bash
+python3 scripts/run_oracle_leg_pipeline.py --leg usdc --start 2026-01-01 --end 2026-06-30
+python3 scripts/run_oracle_leg_pipeline.py --leg usdt --start 2026-01-01 --end 2026-06-30
+```
+
+Fetch USDT oracle (once):
+
+```bash
+python3 scripts/fetch_data.py --dune-only --oracle-asset usdt \
+  --start-date 2026-01-01 --end-date 2026-06-30 \
+  --oracle-out data/chainlink_usdt_2026_h1.csv
+```
+
+## Cross-asset research (new stables / RWAs)
+
+Pool presets in `src/pool_config.py`:
+
+| Preset | Pool | Chain | Use |
+|--------|------|-------|-----|
+| `usdc-usdt` | USDC/USDT | Ethereum | Deployed baseline |
+| `usde-usdt` | USDe/USDT v4 | Ethereum | Active ~$4.5M pool |
+| `usde-usdt-legacy` | USDe/USDT v3 | Ethereum | Oct 2025 minute files in repo |
+| `pyusd-usdc` | PYUSD/USDC v4 | Ethereum | Thin fiat stable |
+| `fdusd-usdc-bsc` | FDUSD/USDC | BSC | Apr 2025 sentiment depeg |
+
+Fetch oracles (Dune):
+
+```bash
+python3 scripts/fetch_data.py --dune-only --oracle-asset usde --start-date 2026-01-01 --end-date 2026-06-30
+python3 scripts/fetch_data.py --dune-only --oracle-asset pyusd --start-date 2026-01-01 --end-date 2026-06-30
+python3 scripts/fetch_data.py --dune-only --oracle-asset fdusd --start-date 2025-04-01 --end-date 2025-04-05 \
+  --oracle-out data/chainlink_fdusd_2025-04.csv
+```
+
+NAV reference mode (RWAs — OUSG, USDY):
+
+```bash
+python3 scripts/prepare_data.py \
+  --pool-preset pyusd-usdc \
+  --oracle-source nav \
+  --nav-csv data/nav_ousg_sample.csv \
+  --reference-mode nav \
+  --out data/prepared_swaps_ousg_nav_sample.csv
+```
+
+Cross-asset scorecard (runs backtests on prepared CSVs that exist):
+
+```bash
+python3 scripts/asset_scorecard.py
+# → output/asset_scorecard.md + output/asset_scorecard.json
+```
 
 ## Tests
 

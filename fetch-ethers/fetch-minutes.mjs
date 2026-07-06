@@ -62,6 +62,8 @@ function parseArgs() {
     fromBlock: null,
     toBlock: null,
     outDir: DATA_DIR,
+    startTs: null,
+    endTs: null,
   };
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
@@ -71,6 +73,8 @@ function parseArgs() {
     else if (a === "--from-block") out.fromBlock = Number(args[++i]);
     else if (a === "--to-block") out.toBlock = Number(args[++i]);
     else if (a === "--out-dir") out.outDir = args[++i];
+    else if (a === "--start-ts") out.startTs = Number(args[++i]);
+    else if (a === "--end-ts") out.endTs = Number(args[++i]);
     else if (a === "--help" || a === "-h") {
       console.log(`Usage: npm run fetch -- [options]
   --chain ethereum            (default: ethereum)
@@ -167,6 +171,81 @@ async function fetchLogs(provider, pool, fromBlock, toBlock) {
   return all;
 }
 
+/** Estimate block timestamp when archive getBlock is rate-limited. */
+function blockTimestampEstimate(
+  blockNumber,
+  anchorFrom,
+  anchorTo,
+) {
+  const { block: b0, ts: t0 } = anchorFrom;
+  const { block: b1, ts: t1 } = anchorTo;
+  if (b1 <= b0) return t0;
+  const frac = (blockNumber - b0) / (b1 - b0);
+  return Math.round(t0 + frac * (t1 - t0));
+}
+
+async function resolveBlockTimestamps(
+  provider,
+  uniqueBlocks,
+  fromBlock,
+  toBlock,
+  startTs = null,
+  endTs = null,
+) {
+  const blockTs = new Map();
+  let anchorFrom = { block: fromBlock, ts: startTs };
+  let anchorTo = { block: toBlock, ts: endTs };
+
+  if (startTs == null || endTs == null) {
+    try {
+      const [b0, b1] = await Promise.all([
+        provider.getBlock(fromBlock),
+        provider.getBlock(toBlock),
+      ]);
+      if (b0?.timestamp) anchorFrom = { block: fromBlock, ts: b0.timestamp };
+      if (b1?.timestamp) anchorTo = { block: toBlock, ts: b1.timestamp };
+    } catch (e) {
+      process.stderr.write(
+        `  anchor blocks failed (${e.shortMessage ?? e}); need --start-ts/--end-ts\n`,
+      );
+    }
+  }
+
+  if (anchorFrom.ts != null && anchorTo.ts != null) {
+    process.stderr.write(
+      `  block timestamps: linear estimate from anchors (${uniqueBlocks.length} blocks)\n`,
+    );
+    for (const n of uniqueBlocks) {
+      blockTs.set(n, blockTimestampEstimate(n, anchorFrom, anchorTo));
+    }
+    return blockTs;
+  }
+
+  const BLOCK_BATCH = 3;
+  const BLOCK_DELAY_MS = 500;
+  process.stderr.write(`  fetching ${uniqueBlocks.length} block timestamps sequentially…\n`);
+  for (let i = 0; i < uniqueBlocks.length; i++) {
+    const n = uniqueBlocks[i];
+    let delay = BLOCK_DELAY_MS;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      try {
+        const b = await provider.getBlock(n);
+        if (b?.timestamp) blockTs.set(n, b.timestamp);
+        break;
+      } catch (e) {
+        if (attempt === 5) throw e;
+        await new Promise((r) => setTimeout(r, delay));
+        delay *= 2;
+      }
+    }
+    if (i > 0 && i % 200 === 0) {
+      process.stderr.write(`    … ${i}/${uniqueBlocks.length} blocks\n`);
+      await new Promise((r) => setTimeout(r, BLOCK_DELAY_MS));
+    }
+  }
+  return blockTs;
+}
+
 async function main() {
   await loadEnvFileAsync();
   const opts = parseArgs();
@@ -189,19 +268,15 @@ async function main() {
   const logs = await fetchLogs(provider, opts.pool, fromBlock, toBlock);
   console.error(`  ${logs.length} Swap events`);
 
-  const blockTs = new Map();
   const uniqueBlocks = [...new Set(logs.map((l) => l.blockNumber))];
-  console.error(`  fetching ${uniqueBlocks.length} block timestamps…`);
-  for (let i = 0; i < uniqueBlocks.length; i += 40) {
-    const batch = uniqueBlocks.slice(i, i + 40);
-    const blocks = await Promise.all(
-      batch.map((n) => provider.getBlock(n)),
-    );
-    for (let j = 0; j < batch.length; j++) {
-      const b = blocks[j];
-      if (b?.timestamp) blockTs.set(batch[j], b.timestamp);
-    }
-  }
+  const blockTs = await resolveBlockTimestamps(
+    provider,
+    uniqueBlocks,
+    fromBlock,
+    toBlock,
+    opts.startTs,
+    opts.endTs,
+  );
 
   const buckets = new Map();
   for (const log of logs) {

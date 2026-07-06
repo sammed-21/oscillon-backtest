@@ -1,4 +1,4 @@
-"""Piecewise surcharge curve (float math)."""
+"""Piecewise surcharge curve (hook integer math)."""
 
 import sys
 from pathlib import Path
@@ -15,14 +15,14 @@ def test_piecewise_dead_band_is_base_only():
 
 
 def test_piecewise_surcharge_starts_at_small_depeg():
-    assert select_fee_bps(3, True, fee_model="piecewise") == 4.0
+    assert select_fee_pips(FeeContext(3, True, fee_model="piecewise")) == 400
 
 
 def test_piecewise_calibration_targets():
-    assert abs(select_fee_bps(10, True, fee_model="piecewise") - 5.0) < 0.01
-    assert abs(select_fee_bps(20, True, fee_model="piecewise") - 9.90) < 0.01
-    assert abs(select_fee_bps(30, True, fee_model="piecewise") - 11.0) < 0.01
-    assert abs(select_fee_bps(50, True, fee_model="piecewise") - 13.20) < 0.01
+    assert select_fee_pips(FeeContext(10, True, fee_model="piecewise")) == 400
+    assert select_fee_pips(FeeContext(20, True, fee_model="piecewise")) == 900
+    assert select_fee_pips(FeeContext(30, True, fee_model="piecewise")) == 1000
+    assert select_fee_pips(FeeContext(50, True, fee_model="piecewise")) == 1300
 
 
 def test_piecewise_restore_is_base():
@@ -30,4 +30,4 @@ def test_piecewise_restore_is_base():
 
 
 def test_piecewise_cap():
-    assert select_fee_bps(500, True, fee_model="piecewise") == 50.0
+    assert select_fee_pips(FeeContext(500, True, fee_model="piecewise")) == 5000

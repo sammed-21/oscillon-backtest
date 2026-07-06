@@ -1,4 +1,4 @@
-"""Fee model: quadratic surcharge path (float math)."""
+"""Fee model: quadratic surcharge path (hook integer math)."""
 
 import sys
 from pathlib import Path
@@ -22,24 +22,24 @@ def test_quadratic_drain_k45_at_15_bps():
     ctx = FeeContext(
         depeg_bps=15, is_drain=True, pool_liquidity=10**18, k_override=45, fee_model="quadratic"
     )
-    assert select_fee_pips(ctx) == 465  # 3 + 1.648 surcharge
+    assert select_fee_pips(ctx) == 400  # 3 + 1 bps surcharge
 
 
 def test_quadratic_drain_k45():
     ctx = FeeContext(
         depeg_bps=20, is_drain=True, pool_liquidity=10**18, k_override=45, fee_model="quadratic"
     )
-    assert select_fee_pips(ctx) == 530
+    assert select_fee_pips(ctx) == 500
 
     ctx50 = FeeContext(depeg_bps=50, is_drain=True, k_override=45, fee_model="quadratic")
-    assert select_fee_pips(ctx50) == 1394
+    assert select_fee_pips(ctx50) == 1300
 
     ctx100 = FeeContext(depeg_bps=100, is_drain=True, k_override=45, fee_model="quadratic")
-    assert select_fee_pips(ctx100) == 4634
+    assert select_fee_pips(ctx100) == 4600
 
 
 def test_thin_pool_k60():
     ctx = FeeContext(
         depeg_bps=30, is_drain=True, pool_liquidity=100_000 * 10**6, fee_model="quadratic"
     )
-    assert select_fee_pips(ctx) == 837
+    assert select_fee_pips(ctx) == 800

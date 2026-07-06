@@ -86,10 +86,25 @@ def with_chainlink_oracle(df: pd.DataFrame, oracle_csv: str) -> pd.DataFrame:
             "No oracle rows matched data timestamps. Check your date range / oracle CSV."
         )
 
-    out["chainlink_usd"] = out["usdc_price"].fillna(1.0).astype(float)
+    out["chainlink_usd"] = out["usdc_price"]
+    missing = out["usdc_price"].isna()
+    if missing.any():
+        raise ValueError(
+            f"{missing.sum()} minute(s) have no Chainlink oracle match. "
+            "Widen oracle CSV date range or drop unmatched rows explicitly."
+        )
     out["oracle_depeg_bps"] = (abs(1.0 - out["chainlink_usd"]) * 10_000).astype(int)
-    out["pool_depeg_bps"] = (abs(1.0 - out["price"]) * 10_000).astype(int)
+    out["pool_depeg_bps"] = (abs(1.0 - out["pool_price"]) * 10_000).astype(int)
     out["arb_gap_bps"] = (out["oracle_depeg_bps"] - out["pool_depeg_bps"]).clip(lower=0).astype(int)
+
+    from src.swap_direction import classify_prepared_swaps
+
+    classified = classify_prepared_swaps(out.reset_index())
+    for col in ("drain_size_usd", "restore_size_usd", "drain_volume_usd", "is_drain", "dev_bps"):
+        if col == "dev_bps":
+            continue
+        if col in classified.columns:
+            out[col] = classified[col].values
 
     return out.set_index("timestamp")
 

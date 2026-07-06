@@ -1,0 +1,34 @@
+ethers v6 fetch | chain=ethereum pool=0x3416cF6C708Da44DB2624D63ea0AAef7113527C6
+  blocks 16836711 → 16907900 (~6h if default)
+  logs 16836711 → 16845710
+  logs 16845711 → 16854710
+  logs 16854711 → 16863710
+  logs 16863711 → 16872710
+  logs 16872711 → 16881710
+  logs 16881711 → 16890710
+  logs 16890711 → 16899710
+  logs 16899711 → 16907900
+  18908 Swap events
+  fetching 15981 block timestamps…
+Error: missing response for request (value=[ { "code": -32005, "data": { "see": "https://infura.io/dashboard" }, "message": "Too Many Requests" }, { "code": -32005, "data": { "see": "https://infura.io/dashboard" }, "message": "Too Many Requests" }, { "code": -32005, "data": { "see": "https://infura.io/dashboard" }, "message": "Too Many Requests" }, { "code": -32005, "data": { "see": "https://infura.io/dashboard" }, "message": "Too Many Requests" }, { "code": -32005, "data": { "see": "https://infura.io/dashboard" }, "message": "Too Many Requests" } ], info={ "payload": { "id": 25, "jsonrpc": "2.0", "method": "eth_getBlockByNumber", "params": [ "0x100e89f", false ] } }, code=BAD_DATA, version=6.16.0)
+    at makeError (file:///Users/sammedsbetadur/Desktop/oscillon/research-backtest/fetch-ethers/node_modules/ethers/lib.esm/utils/errors.js:132:21)
+    at file:///Users/sammedsbetadur/Desktop/oscillon/research-backtest/fetch-ethers/node_modules/ethers/lib.esm/providers/provider-jsonrpc.js:289:47
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  code: 'BAD_DATA',
+  value: [
+    { code: -32005, message: 'Too Many Requests', data: [Object] },
+    { code: -32005, message: 'Too Many Requests', data: [Object] },
+    { code: -32005, message: 'Too Many Requests', data: [Object] },
+    { code: -32005, message: 'Too Many Requests', data: [Object] },
+    { code: -32005, message: 'Too Many Requests', data: [Object] }
+  ],
+  info: {
+    payload: {
+      method: 'eth_getBlockByNumber',
+      params: [Array],
+      id: 25,
+      jsonrpc: '2.0'
+    }
+  },
+  shortMessage: 'missing response for request'
+}
