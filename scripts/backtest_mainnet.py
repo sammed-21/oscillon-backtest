@@ -481,6 +481,46 @@ def main() -> None:
     print("  Production comparison: use LP Capture % and LP Income; Spread column should")
     print("  match across Oscillon variants when fees stay below dev_bps.")
 
+    if not args.apply_routing:
+        print("\n" + "=" * 70)
+        print("ROUTING SENSITIVITY (Oscillon hybrid, fixed vs elastic-demand bound)")
+        print("=" * 70)
+        fixed_records = [
+            simulate_swap_row(swap, oscillon_fee_hybrid, curve_fee_bps=args.curve_fee_bps)
+            for _, swap in swaps.iterrows()
+        ]
+        elastic_records = [
+            simulate_swap_row(
+                swap,
+                oscillon_fee_hybrid,
+                curve_fee_bps=args.curve_fee_bps,
+                apply_routing=True,
+                volume_eta=args.volume_eta,
+            )
+            for _, swap in swaps.iterrows()
+        ]
+        fixed_df = pd.DataFrame(fixed_records)
+        elastic_df = pd.DataFrame(elastic_records)
+        fixed_s = summarize_backtest(fixed_df, tvl=args.tvl, period_days=period_days)
+        elastic_s = summarize_backtest(elastic_df, tvl=args.tvl, period_days=period_days)
+        print(
+            f"  Fixed volume (default headline):   LP income ${fixed_s['lp_income_usd']:,.0f}  "
+            f"capture {fixed_s['lp_capture_pct']:.1f}%"
+        )
+        print(
+            f"  Elastic routing (--volume-eta {args.volume_eta:g}): LP income ${elastic_s['lp_income_usd']:,.0f}  "
+            f"capture {elastic_s['lp_capture_pct']:.1f}%"
+        )
+        drop_pct = (
+            (fixed_s["lp_income_usd"] - elastic_s["lp_income_usd"]) / fixed_s["lp_income_usd"] * 100
+            if fixed_s["lp_income_usd"] > 0
+            else 0.0
+        )
+        print(
+            f"  Fixed-counterfactual overstates LP income by {drop_pct:.1f}% if traders route away "
+            f"at this elasticity — see BACKTEST_AUDIT.md Q3/Q8#1."
+        )
+
     # Large-depeg capture honesty check
     base_df = all_results["Static (current)"]
     large_mask = base_df["dev_bps"] >= 30

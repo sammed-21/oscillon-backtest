@@ -1,0 +1,15 @@
+{
+  "vault_name": "USDG/NVDA",
+  "pool_address": "TBD - waiting for founder to share",
+  "chain": "TBD - waiting for founder to share",
+  "tick_lower_price": 199.964,
+  "tick_upper_price": 210.006,
+  "fee_tier_bps": 5,
+  "fixed_apr": 91.75,
+  "capacity_usd": 3996,
+  "vault_start": "TBD",
+  "vault_end": "2026-07-20T15:24:00",
+  "oracle_asset": "NVDA",
+  "oracle_source": "TBD - waiting for founder to share",
+  "notes": "2-hour test vault, broke even in 8 minutes"
+}

@@ -8,6 +8,12 @@ Fees collected on that flow partially offset toxic flow:
   net_lvr_usd = toxic_notional − fee_revenue_usd
 
 This is a research approximation — not a full AMM inventory mark-to-market.
+
+Standalone reference module: the 5 bps noise floor below is NOT applied by
+scripts/backtest_mainnet.py, which calls src/backtest_engine.py directly.
+That path floors LVR at dev_bps > 0 only (no explicit noise floor), because
+below SMALL_DEPEG_BPS=3 the fee models already return >= dev_bps, zeroing
+LVR via the max(0, ...) clamp. Don't assume both modules agree below 5 bps.
 """
 
 from __future__ import annotations
