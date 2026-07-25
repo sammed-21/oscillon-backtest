@@ -75,6 +75,13 @@ def main() -> None:
     )
     p.add_argument("--out", default="data/prepared_swaps.csv")
     p.add_argument("--min-swap-usd", type=float, default=100.0)
+    p.add_argument(
+        "--max-oracle-gap-minutes",
+        type=float,
+        default=0.0,
+        help="Drop swaps whose matched oracle price is older than this many minutes "
+        "(0 = no cap, current default behavior — stale reads used indefinitely)",
+    )
     args = p.parse_args()
 
     pool_key = args.pool or args.pool_preset
@@ -178,19 +185,27 @@ def main() -> None:
             raise ValueError(f"No price column found in {oracle_path}")
         oracle["timestamp"] = pd.to_datetime(oracle["minute"], utc=True).dt.tz_localize(None)
         oracle = oracle.sort_values("timestamp")
-        # Backward as-of on timestamp; no max gap (staleness can understate dev_bps — conservative).
+        merge_kwargs = {}
+        if args.max_oracle_gap_minutes > 0:
+            merge_kwargs["tolerance"] = pd.Timedelta(minutes=args.max_oracle_gap_minutes)
         swaps = pd.merge_asof(
             swaps.sort_values("timestamp"),
             oracle[["timestamp", price_col]].rename(columns={price_col: "oracle_price"}),
             on="timestamp",
             direction="backward",
+            **merge_kwargs,
         )
         print(f"Oracle leg: {oracle_leg} ({oracle_asset})")
         print(f"Oracle source: {oracle_path} ({price_col})")
+        if args.max_oracle_gap_minutes > 0:
+            print(f"Max oracle staleness: {args.max_oracle_gap_minutes:g} min (stale-beyond-cap swaps dropped)")
+        else:
+            print("Max oracle staleness: uncapped (stale reads used indefinitely — conservative for LVR)")
         print(f"Swaps with oracle data: {swaps['oracle_price'].notna().sum():,}")
         missing_oracle = swaps["oracle_price"].isna().sum()
         if missing_oracle:
-            print(f"Dropping {missing_oracle:,} swaps with no oracle match")
+            reason = "stale beyond cap or no match" if args.max_oracle_gap_minutes > 0 else "no oracle match"
+            print(f"Dropping {missing_oracle:,} swaps ({reason})")
             swaps = swaps[swaps["oracle_price"].notna()].copy()
 
     if reference_mode == "nav" and "pool_price" in swaps.columns:
