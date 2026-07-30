@@ -45,7 +45,7 @@ Oscillon does not rebalance, mint, or redeem. It adjusts the swap fee on **drain
 |-----------|-----|
 | Healthy / restore direction | 3 bps base |
 | Drain, deviation < 3 bps | 3 bps base only |
-| Drain, deviation ≥ 3 bps | 3 bps + hybrid surcharge (piecewise ∩ quadratic, max 50 bps) |
+| Drain, deviation ≥ 3 bps | 3 bps + hybrid surcharge (piecewise ∩ quadratic, max 100 bps) |
 
 **Drain classification (USDC deployed path):**
 

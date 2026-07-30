@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from src.backtest_engine import simulate_swap_row, summarize_backtest
-from src.oscillon_fee import BASE_FEE_BPS, oscillon_fee_bps, select_fee_bps
+from src.oscillon_fee import BASE_FEE_BPS, MAX_FEE_BPS, oscillon_fee_bps, select_fee_bps
 from src.swap_direction import TOKEN0_SYMBOL, TOKEN1_SYMBOL, validate_prepared_swaps
 
 
@@ -56,7 +56,7 @@ def oscillon_fee_additive(dev_bps: float, is_drain: bool) -> float:
 
 
 def oscillon_fee_no_threshold(dev_bps: float, is_drain: bool) -> float:
-    max_fee = 50.0
+    max_fee = MAX_FEE_BPS
     k = 45
     if not is_drain:
         return BASE_FEE_BPS
@@ -72,7 +72,7 @@ def paper_minimum_fee(dev_bps: float, is_drain: bool, safety: float = 1.05) -> f
     fee often exceeds dev_bps, zeroing LVR and inflating LP income beyond the
     arb spread. Use only as an oracle ceiling benchmark, not vs Oscillon hybrid.
     """
-    max_fee = 50.0
+    max_fee = MAX_FEE_BPS
     if not is_drain:
         return BASE_FEE_BPS
     minimum = dev_bps * safety
