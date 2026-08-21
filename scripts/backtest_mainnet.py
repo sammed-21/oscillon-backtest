@@ -23,7 +23,7 @@ sys.path.insert(0, str(ROOT))
 
 from src.backtest_engine import simulate_swap_row, summarize_backtest
 from src.oscillon_fee import BASE_FEE_BPS, MAX_FEE_BPS, oscillon_fee_bps, select_fee_bps
-from src.swap_direction import TOKEN0_SYMBOL, TOKEN1_SYMBOL, validate_prepared_swaps
+from src.swap_direction import validate_prepared_swaps
 
 
 def _safe_dev_bps(dev_bps: float) -> float:
@@ -84,6 +84,7 @@ def build_charts(
     all_results: dict[str, pd.DataFrame],
     chart_out: str,
     show_chart: bool,
+    pool_label: str = "USDC/USDT",
 ) -> None:
     fig = plt.figure(figsize=(16, 12))
     gs = gridspec.GridSpec(2, 2, figure=fig, hspace=0.4, wspace=0.3)
@@ -254,7 +255,7 @@ def build_charts(
     ax4.grid(True, alpha=0.3, axis="y")
 
     plt.suptitle(
-        "Oscillon Fee Mechanism Backtest\nUSDC/USDT Pool - Historical Data",
+        f"Oscillon Fee Mechanism Backtest\n{pool_label} Pool - Historical Data",
         fontsize=14,
         fontweight="bold",
     )
@@ -389,7 +390,10 @@ def main() -> None:
     ts = pd.to_datetime(swaps["timestamp"])
     period_days = max((ts.max() - ts.min()).total_seconds() / 86400.0, 1.0)
     print(f"Oracle leg: {oracle_leg} ({oracle_asset}/USD Chainlink — no mixed feeds)")
-    print(f"Pool tokens: token0={TOKEN0_SYMBOL}, token1={TOKEN1_SYMBOL}")
+    token0_symbol = str(swaps["token0"].iloc[0]) if "token0" in swaps.columns else "token0"
+    token1_symbol = str(swaps["token1"].iloc[0]) if "token1" in swaps.columns else "token1"
+    pool_label = f"{token0_symbol}/{token1_symbol}"
+    print(f"Pool tokens: token0={token0_symbol}, token1={token1_symbol}")
     print(f"Backtest period: {period_days:.1f} days")
     drain_vol_col = "drain_size_usd" if "drain_size_usd" in swaps.columns else "swap_size_usd"
     print(
@@ -578,7 +582,7 @@ def main() -> None:
 
         print(f"  ({n_in_cond:,} swaps = {pct:.1f}% of all swaps)")
 
-    build_charts(all_results, chart_out=args.chart_out, show_chart=args.show_chart)
+    build_charts(all_results, chart_out=args.chart_out, show_chart=args.show_chart, pool_label=pool_label)
 
 
 if __name__ == "__main__":

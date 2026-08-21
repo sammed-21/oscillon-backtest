@@ -82,6 +82,14 @@ def main() -> None:
         help="Drop swaps whose matched oracle price is older than this many minutes "
         "(0 = no cap, current default behavior — stale reads used indefinitely)",
     )
+    p.add_argument(
+        "--minute-filename-template",
+        default="{chain}-{address}-{day}.minute.csv",
+        help="Filename pattern for daily minute files, relative to --data-dir. "
+        "Supports {chain} {address} {day} placeholders. Override for non-default "
+        "naming (e.g. v4 files fetched via fetch_dune_v4_swaps.py: "
+        "'v4-{address}-{day}.minute.csv').",
+    )
     args = p.parse_args()
 
     pool_key = args.pool or args.pool_preset
@@ -95,10 +103,12 @@ def main() -> None:
         frames: list[pd.DataFrame] = []
         day = start
         while day <= end:
-            fp = (
-                Path(args.data_dir)
-                / f"{pool.chain.lower()}-{pool.address.lower()}-{day:%Y-%m-%d}.minute.csv"
+            fname = args.minute_filename_template.format(
+                chain=pool.chain.lower(),
+                address=pool.address.lower(),
+                day=f"{day:%Y-%m-%d}",
             )
+            fp = Path(args.data_dir) / fname
             if not fp.exists():
                 raise FileNotFoundError(f"Missing minute file: {fp}")
             frames.append(pd.read_csv(fp))

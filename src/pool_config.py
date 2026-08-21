@@ -36,7 +36,11 @@ USDE_USDT = PoolConfig(
     token0_decimals=18,
     token1_decimals=6,
     oracle_asset_symbol="USDe",
-    description="Ethereum USDe/USDT v4 0.005% — active pool (~$4.5M TVL)",
+    description="Ethereum USDe/USDT v4 pool (PoolId, not a contract address — "
+    "v4 has no per-pool contracts). Swap data fetched via Dune's decoded "
+    "PoolManager_evt_Swap table (scripts/fetch_dune_v4_swaps.py); minute files "
+    "in data/usde_usdt/. Token0/token1 order and decimals verified via tick-to-"
+    "price sanity check (~$1.00), 2025-10-02 to 2026-08-20.",
 )
 
 USDE_USDT_LEGACY = PoolConfig(
@@ -46,7 +50,23 @@ USDE_USDT_LEGACY = PoolConfig(
     token0_decimals=18,
     token1_decimals=6,
     oracle_asset_symbol="USDe",
-    description="Ethereum USDe/USDT legacy v3 pool — Oct 2025 minute files in repo",
+    description="Ethereum USDe/USDT v3 pool — candidate v3 fallback, liquidity "
+    "not yet verified. Superseded by fetching the real v4 pool (USDE_USDT) "
+    "directly via Dune; kept here in case a v3 comparison is ever needed.",
+)
+
+USDE_USDC = PoolConfig(
+    address="0x56fc29b86900aa0afa6e20b020429bffba1105cfb45070492c67529b46eb48c1",
+    token0_symbol="USDe",
+    token1_symbol="USDC",
+    token0_decimals=18,
+    token1_decimals=6,
+    oracle_asset_symbol="USDe",
+    description="Ethereum USDe/USDC v4 pool (PoolId). ~$612k TVL per Uniswap UI "
+    "(2026-08); only pool with meaningful liquidity for this pair — all v3 "
+    "candidates are $63 TVL or less. Pool created 2026-07-17, so history is "
+    "only ~5 weeks, not a year. Swap data in data/usde_usdc/, fetched via Dune. "
+    "Token0/token1 order and decimals verified via tick-to-price sanity check.",
 )
 
 PYUSD_USDC = PoolConfig(
@@ -72,6 +92,7 @@ POOL_PRESETS: dict[str, PoolConfig] = {
     "usdc-usdt": USDC_USDT,
     "usde-usdt": USDE_USDT,
     "usde-usdt-legacy": USDE_USDT_LEGACY,
+    "usde-usdc": USDE_USDC,
     "pyusd-usdc": PYUSD_USDC,
     "fdusd-usdc-bsc": FDUSD_USDC_BSC,
 }
