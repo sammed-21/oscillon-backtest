@@ -14,8 +14,8 @@ skip_existed = true
 pool_address = "0x435664008f38b0650fbc1c9fc971d0a3bc2f1e47"
 
 [from.rpc]
-end_point = "https://mainnet.infura.io/v3/744caf0874f84bc8b6ed1bd730368887"
+end_point = "REPLACE_WITH_YOUR_RPC_URL"  # set from your own INFURA_URL / RPC provider, do not commit real value
 batch_size = 50
 ignore_position_id = true
-etherscan_api_key = "417UPC2RGUJAY79PIPDJD64KN57HJC1Q7R"
+etherscan_api_key = "REPLACE_WITH_YOUR_ETHERSCAN_KEY"  # set from ETHERSCAN_API_KEY, do not commit real value
 thread = 1

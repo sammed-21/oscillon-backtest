@@ -9,6 +9,7 @@ from .pool_config import (
     FDUSD_USDC_BSC,
     PYUSD_USDC,
     USDC_USDT,
+    USDE_USDC,
     USDE_USDT,
     USDE_USDT_LEGACY,
     PoolConfig,
@@ -91,20 +92,36 @@ RESEARCH_CASES: tuple[AssetResearchCase, ...] = (
         partnership_tier="primary",
     ),
     AssetResearchCase(
-        asset_id="usde_v4_calm",
-        label="USDe/USDT v4 calm",
+        asset_id="usde_v4_full",
+        label="USDe/USDT v4 (real, verified)",
         pool_preset="usde-usdt",
         pool=USDE_USDT,
-        prepared_csv="data/prepared_swaps_usde_2026_h1.csv",
+        prepared_csv="data/prepared_swaps_usde_usdt.csv",
         oracle_source="chainlink",
-        oracle_file="data/chainlink_usde_2026_h1.csv",
+        oracle_file="data/usde_usdt/chainlink_usde_2025-10-02_2026-08-20.csv",
         reference_mode="dollar_peg",
-        period_label="2026 H1",
+        period_label="2025-10-02 to 2026-08-20",
         category="new_stable",
         fetch_hint=(
-            "python3 scripts/fetch_data.py --dune-only --oracle-asset usde "
-            "--start-date 2026-01-01 --end-date 2026-06-30; "
-            "then fetch swaps for pool usde-usdt"
+            "scripts/fetch_dune_v4_swaps.py + prepare_data.py — see "
+            "data/USDE_DATA_PROVENANCE.md for the full fetch/verify pipeline"
+        ),
+        partnership_tier="primary",
+    ),
+    AssetResearchCase(
+        asset_id="usde_usdc_v4_full",
+        label="USDe/USDC v4 (real, verified)",
+        pool_preset="usde-usdc",
+        pool=USDE_USDC,
+        prepared_csv="data/prepared_swaps_usde_usdc.csv",
+        oracle_source="chainlink",
+        oracle_file="data/usde_usdt/chainlink_usde_2025-10-02_2026-08-20.csv",
+        reference_mode="dollar_peg",
+        period_label="2026-07-17 to 2026-08-20",
+        category="new_stable",
+        fetch_hint=(
+            "scripts/fetch_dune_v4_swaps.py + prepare_data.py — see "
+            "data/USDE_DATA_PROVENANCE.md for the full fetch/verify pipeline"
         ),
         partnership_tier="primary",
     ),
