@@ -55,6 +55,21 @@ USDE_USDT_LEGACY = PoolConfig(
     "directly via Dune; kept here in case a v3 comparison is ever needed.",
 )
 
+USDS_USDT = PoolConfig(
+    address="0x3b1b1f2e775a6db1664f8e7d59ad568605ea2406312c11aef03146c0cf89d5b9",
+    token0_symbol="USDT",
+    token1_symbol="USDS",
+    token0_decimals=6,
+    token1_decimals=18,
+    oracle_asset_symbol="USDS",
+    description="Ethereum USDT/USDS v4 pool (PoolId), fee tier 5 (0.05 bps), "
+    "tick spacing 1. Dominant pool by volume among 18 USDS/USDT v4 pools "
+    "checked (175,611 swaps since 2026-01-24 vs next-highest 19,670) — "
+    "confirmed ~$50M TVL per Uniswap UI. currency0=USDT/currency1=USDS per "
+    "on-chain Initialize event (USDT address sorts lower). No confirmed "
+    "Chainlink USDS/USD feed found; use --oracle-source pool.",
+)
+
 USDE_USDC = PoolConfig(
     address="0x56fc29b86900aa0afa6e20b020429bffba1105cfb45070492c67529b46eb48c1",
     token0_symbol="USDe",
@@ -93,6 +108,7 @@ POOL_PRESETS: dict[str, PoolConfig] = {
     "usde-usdt": USDE_USDT,
     "usde-usdt-legacy": USDE_USDT_LEGACY,
     "usde-usdc": USDE_USDC,
+    "usds-usdt": USDS_USDT,
     "pyusd-usdc": PYUSD_USDC,
     "fdusd-usdc-bsc": FDUSD_USDC_BSC,
 }

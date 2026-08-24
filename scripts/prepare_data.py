@@ -110,7 +110,9 @@ def main() -> None:
             )
             fp = Path(args.data_dir) / fname
             if not fp.exists():
-                raise FileNotFoundError(f"Missing minute file: {fp}")
+                print(f"  (no minute file for {day} — zero-swap day, skipping)")
+                day += timedelta(days=1)
+                continue
             frames.append(pd.read_csv(fp))
             day += timedelta(days=1)
         swaps = pd.concat(frames, ignore_index=True)
