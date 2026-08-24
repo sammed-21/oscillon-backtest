@@ -407,10 +407,19 @@ def main() -> None:
     print(f"Timeline data saved: {args.timeline_csv} ({len(timeline):,} rows)")
     build_timeline_chart(timeline, chart_out=args.timeline_out, show_chart=args.show_chart)
 
-    if oracle_leg == "token1":
+    pool_address = str(swaps["pool_address"].iloc[0]) if "pool_address" in swaps.columns else ""
+    is_deployed_usdc_usdt = pool_address.lower() == "0x3416cf6c708da44db2624d63ea0aaef7113527c6"
+    if is_deployed_usdc_usdt and oracle_leg == "token1":
         print(
-            "\nNOTE: USDT oracle leg is counterfactual (not deployed). "
+            "\nNOTE: USDT oracle leg is counterfactual on the deployed USDC/USDT pool "
+            "(the live hook is anchored to the USDC feed, token0). "
             "Use USDC-oracle prepared files for on-chain hook / auditor headlines."
+        )
+    elif not is_deployed_usdc_usdt:
+        print(
+            f"\nNOTE: {oracle_asset}/USD is the oracle used for this backtest "
+            f"({pool_label}) — this pool has no 'deployed hook' reference case, "
+            "so there is no separate counterfactual leg to flag here."
         )
 
     if args.timeline_only:
