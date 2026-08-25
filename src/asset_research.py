@@ -8,10 +8,12 @@ from pathlib import Path
 from .pool_config import (
     FDUSD_USDC_BSC,
     PYUSD_USDC,
+    PYUSD_USDS,
     USDC_USDT,
     USDE_USDC,
     USDE_USDT,
     USDE_USDT_LEGACY,
+    USDS_USDT,
     PoolConfig,
 )
 
@@ -187,6 +189,42 @@ RESEARCH_CASES: tuple[AssetResearchCase, ...] = (
         period_label="sample",
         category="rwa",
         fetch_hint="NAV ~112–115 USD; drain when pool_price < NAV",
+        partnership_tier="primary",
+    ),
+    AssetResearchCase(
+        asset_id="usds_usdt_v4_full",
+        label="USDS/USDT v4 (real, verified)",
+        pool_preset="usds-usdt",
+        pool=USDS_USDT,
+        prepared_csv="data/prepared_swaps_usds_usdt_oracle.csv",
+        oracle_source="chainlink",
+        oracle_file="data/usds_usdt/chainlink_usds_2026-01-20_2026-08-24.csv",
+        reference_mode="dollar_peg",
+        period_label="2026-01-24 to 2026-08-24",
+        category="new_stable",
+        fetch_hint=(
+            "scripts/fetch_dune_v4_swaps.py + prepare_data.py — oracle traced "
+            "via Chainlink Feed Registry (getFeed), not the public feed listing "
+            "which doesn't surface this one. See conversation history for the "
+            "full discovery path (Feed Registry 0x47Fb2585D2C56Fe188D0E6ec628a38b74fCeeeDf)."
+        ),
+        partnership_tier="primary",
+    ),
+    AssetResearchCase(
+        asset_id="pyusd_usds_v4_full",
+        label="PYUSD/USDS v4 (real, verified)",
+        pool_preset="pyusd-usds",
+        pool=PYUSD_USDS,
+        prepared_csv="data/prepared_swaps_pyusd_usds_oracle.csv",
+        oracle_source="chainlink",
+        oracle_file="data/pyusd_usds/chainlink_pyusd_2026-02-15_2026-08-25.csv",
+        reference_mode="dollar_peg",
+        period_label="2026-02-19 to 2026-08-25",
+        category="new_stable",
+        fetch_hint=(
+            "scripts/fetch_dune_v4_swaps.py + prepare_data.py — PYUSD Chainlink "
+            "feed traced via aggregator() from proxy 0x8f1dF6D7F2db73eECE86a18b4381F4707b918FB1."
+        ),
         partnership_tier="primary",
     ),
 )

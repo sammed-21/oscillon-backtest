@@ -70,6 +70,18 @@ USDS_USDT = PoolConfig(
     "Chainlink USDS/USD feed found; use --oracle-source pool.",
 )
 
+PYUSD_USDS = PoolConfig(
+    address="0xe63e32b2ae40601662f760d6bf5d771057324fbd97784fe1d3717069f7b75d45",
+    token0_symbol="PYUSD",
+    token1_symbol="USDS",
+    token0_decimals=6,
+    token1_decimals=18,
+    oracle_asset_symbol="PYUSD",
+    description="Ethereum PYUSD/USDS v4 pool (PoolId), fee tier 5 (0.05 bps), "
+    "tick spacing 1. currency0=PYUSD (verified via symbol()/decimals() RPC "
+    "calls), currency1=USDS. Active since 2026-02-19, 28,149+ swaps.",
+)
+
 USDE_USDC = PoolConfig(
     address="0x56fc29b86900aa0afa6e20b020429bffba1105cfb45070492c67529b46eb48c1",
     token0_symbol="USDe",
@@ -82,6 +94,39 @@ USDE_USDC = PoolConfig(
     "candidates are $63 TVL or less. Pool created 2026-07-17, so history is "
     "only ~5 weeks, not a year. Swap data in data/usde_usdc/, fetched via Dune. "
     "Token0/token1 order and decimals verified via tick-to-price sanity check.",
+)
+
+AUSD_USDC_MONAD = PoolConfig(
+    address="0x092b650478145f0aee73a1b400b342b9c6314db2e07aeb91faf7e75e8159ce72",
+    token0_symbol="AUSD",
+    token1_symbol="USDC",
+    token0_decimals=6,
+    token1_decimals=6,
+    oracle_asset_symbol="AUSD",
+    chain="monad",
+    description="Monad mainnet AUSD/USDC v4 pool (PoolId), fee tier 50 "
+    "(0.5 bps), tick spacing 1. Initialized 2025-11-19; 292,928+ swaps by "
+    "2026-08. First cross-chain (non-Ethereum) pool tested. No independent "
+    "oracle found — Chainlink has no price feeds on Monad yet (only CCIP "
+    "bridge infra), RedStone's multi-feed adapter table exists but is "
+    "unindexed. Uses --oracle-source pool (same limitation as USDS/USDT's "
+    "first pass): no cross-venue confirmation of depeg vs. pool-specific noise.",
+)
+
+FRAX_USDC = PoolConfig(
+    address="0xc63b0708e2f7e69cb8a1df0e1389a98c35a76d52",
+    token0_symbol="FRAX",
+    token1_symbol="USDC",
+    token0_decimals=18,
+    token1_decimals=6,
+    oracle_asset_symbol="FRAX",
+    description="Ethereum FRAX/USDC v3 pool (real contract address, not a "
+    "v4 PoolId). Legacy fractional-algorithmic FRAX (pre-2023 FXIP-188 "
+    "vote), NOT frxUSD (which is fully collateralized). Active continuously "
+    "since 2021. Chainlink FRAX/USD feed traced via Feed Registry "
+    "(0x8f73090a7c58b8bdcc9a93cbb6816e5cc4f01e8c) — updates far more "
+    "frequently (18,799 events since mid-2024) than fully-collateralized "
+    "peers, consistent with genuine higher volatility.",
 )
 
 PYUSD_USDC = PoolConfig(
@@ -109,6 +154,9 @@ POOL_PRESETS: dict[str, PoolConfig] = {
     "usde-usdt-legacy": USDE_USDT_LEGACY,
     "usde-usdc": USDE_USDC,
     "usds-usdt": USDS_USDT,
+    "pyusd-usds": PYUSD_USDS,
+    "frax-usdc": FRAX_USDC,
+    "ausd-usdc-monad": AUSD_USDC_MONAD,
     "pyusd-usdc": PYUSD_USDC,
     "fdusd-usdc-bsc": FDUSD_USDC_BSC,
 }

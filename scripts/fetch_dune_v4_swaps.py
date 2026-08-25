@@ -35,7 +35,7 @@ SELECT
     amount1,
     tick,
     liquidity
-FROM uniswap_v4_ethereum.PoolManager_evt_Swap
+FROM uniswap_v4_{chain}.PoolManager_evt_Swap
 WHERE id = {pool_id}
 AND evt_block_time >= TIMESTAMP '{start_date}'
 AND evt_block_time < TIMESTAMP '{end_exclusive}'
@@ -63,6 +63,7 @@ def fetch_v4_swaps_raw(
     start_date: str,
     end_date: str,
     *,
+    chain: str = "ethereum",
     chunk_days: int = 3,
     execute_timeout: int = 300,
     poll_timeout: int = 120,
@@ -70,12 +71,12 @@ def fetch_v4_swaps_raw(
     session = _session()
     headers = {"X-DUNE-API-KEY": api_key}
     chunks = list(_date_chunks(start_date, end_date, chunk_days))
-    print(f"Dune v4 swaps ({pool_id}): {len(chunks)} chunk(s), {chunk_days} day(s) each")
+    print(f"Dune v4 swaps ({chain}, {pool_id}): {len(chunks)} chunk(s), {chunk_days} day(s) each")
 
     frames: list[pd.DataFrame] = []
     for i, (chunk_start, chunk_end) in enumerate(chunks, 1):
         end_ex = _end_exclusive(chunk_end)
-        sql = DUNE_V4_SWAP_SQL.format(pool_id=pool_id, start_date=chunk_start, end_exclusive=end_ex)
+        sql = DUNE_V4_SWAP_SQL.format(chain=chain, pool_id=pool_id, start_date=chunk_start, end_exclusive=end_ex)
         print(f"  Chunk {i}/{len(chunks)}: {chunk_start} -> {chunk_end} ...")
 
         exec_resp = session.post(
@@ -160,6 +161,7 @@ def aggregate_to_minute(swaps: pd.DataFrame) -> pd.DataFrame:
 def main() -> None:
     p = argparse.ArgumentParser(description="Fetch Uniswap v4 swaps via Dune, aggregate to minute bars")
     p.add_argument("--pool-id", required=True, help="v4 PoolId, 0x + 64 hex chars")
+    p.add_argument("--chain", default="ethereum", help="Dune chain schema suffix, e.g. ethereum, monad")
     p.add_argument("--start", required=True)
     p.add_argument("--end", required=True)
     p.add_argument("--out-dir", required=True)
@@ -175,7 +177,7 @@ def main() -> None:
     if not api_key:
         raise SystemExit("No Dune API key: pass --dune-api-key or set DUNE_API_KEY in env/.env")
 
-    raw = fetch_v4_swaps_raw(api_key, args.pool_id, args.start, args.end, chunk_days=args.chunk_days)
+    raw = fetch_v4_swaps_raw(api_key, args.pool_id, args.start, args.end, chain=args.chain, chunk_days=args.chunk_days)
     minute = aggregate_to_minute(raw)
 
     out_dir = Path(args.out_dir)
