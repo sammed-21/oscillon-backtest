@@ -1,7 +1,7 @@
-# Oscillon LVR Research — Quant Research Summary
+# Oscillon LVR Research — Research Summary
 
-*A self-contained writeup of the research methodology, findings, and engineering
-rigor behind this project, prepared for technical review.*
+_A self-contained writeup of the research methodology, findings, and engineering
+rigor behind this project, prepared for technical review._
 
 ---
 
@@ -39,12 +39,12 @@ answer three questions a quant researcher is actually paid to answer, not just
 Every dataset that went into a headline number passed the same four checks
 before being trusted, not after a result looked interesting:
 
-| Check | What it catches |
-|---|---|
-| **Completeness** | Fetched row count vs. an independently re-queried ground truth count |
-| **Aggregation correctness** | Minute-level bars re-derived from raw swap-level data, checked for exact match — not "close enough" |
-| **Sanity bounds** | Every implied price checked against a plausible range across the *entire* dataset, not spot-checked |
-| **Random on-chain sample** | N rows per dataset independently re-derived from raw RPC transaction receipts, bypassing every indexing layer used to build the dataset |
+| Check                       | What it catches                                                                                                                         |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **Completeness**            | Fetched row count vs. an independently re-queried ground truth count                                                                    |
+| **Aggregation correctness** | Minute-level bars re-derived from raw swap-level data, checked for exact match — not "close enough"                                     |
+| **Sanity bounds**           | Every implied price checked against a plausible range across the _entire_ dataset, not spot-checked                                     |
+| **Random on-chain sample**  | N rows per dataset independently re-derived from raw RPC transaction receipts, bypassing every indexing layer used to build the dataset |
 
 Every dataset that shipped a headline number passed with a 100% match rate on
 the RPC cross-check — the one verification step that cannot be fooled by an
@@ -60,15 +60,15 @@ wasn't an artifact of the specific window studied, the largest single-asset
 dataset was split chronologically into a training period and a strictly
 later, disjoint test period, with **zero parameter changes** between the two:
 
-| Period | Static-fee LP capture | Dynamic-fee LP capture | Improvement |
-|---|---|---|---|
-| Training window | 50.6% | 63.2% | +12.6 pp |
-| Test window (later, disjoint) | 62.4% | 73.6% | +11.2 pp |
+| Period                        | Static-fee LP capture | Dynamic-fee LP capture | Improvement |
+| ----------------------------- | --------------------- | ---------------------- | ----------- |
+| Training window               | 50.6%                 | 63.2%                  | +12.6 pp    |
+| Test window (later, disjoint) | 62.4%                 | 73.6%                  | +11.2 pp    |
 
 The improvement held out-of-sample within 1.4 percentage points despite the
 two windows representing genuinely different market regimes (the test window
 was calmer overall — both static and dynamic capture rose together). The
-relevant read is the *stability of the gap*, not the absolute level, and the
+relevant read is the _stability of the gap_, not the absolute level, and the
 gap did not degrade.
 
 ---
@@ -81,11 +81,13 @@ Backtesting the same fee design across seven real pools produced a
 100x range in average deviation and a correspondingly wide range in how much
 value a static fee already leaves on the table:
 
-| Peg mechanism (asset class) | Avg. deviation | Static-fee LP capture |
-|---|---|---|
-| Fiat/crypto-collateralized (multiple pairs) | ~1–3 bps | 97–100% |
-| Delta-neutral synthetic dollar | ~2–8 bps | 50–99% |
-| Legacy fractional-algorithmic, no longer actively defended | ~77 bps | 7% |
+| Peg mechanism (asset class)                                | Avg. deviation | Static-fee LP capture |
+| ---------------------------------------------------------- | -------------- | --------------------- |
+| Fiat/crypto-collateralized (multiple pairs)                | ~1–3 bps       | 97–100%               |
+| Delta-neutral synthetic dollar                             | ~2–8 bps       | 50–99%                |
+| Legacy fractional-algorithmic, no longer actively defended | ~77 bps        | 7%                    |
+
+![Cross-asset deviation and static-fee capture across 7 real pools](output/cross_asset_summary.png)
 
 **Conclusion, stated the way a research desk would want it stated:** a
 uniform dynamic-fee design is close to redundant on mature, tightly-pegged
@@ -99,15 +101,17 @@ mechanism should be deployed.
 
 The same mechanism, same asset, same fee curve:
 
-| Regime | Static capture | Dynamic-fee capture |
-|---|---|---|
-| Acute stress event (single historical depeg episode) | 14.8% | 33–40% |
-| Calm baseline period | 97.8% | 99.9% |
+| Regime                                               | Static capture | Dynamic-fee capture |
+| ---------------------------------------------------- | -------------- | ------------------- |
+| Acute stress event (single historical depeg episode) | 14.8%          | 33–40%              |
+| Calm baseline period                                 | 97.8%          | 99.9%               |
+
+![March 2023 acute stress backtest: fee curves, LVR distribution, cumulative LP income, and capture by market condition](output/oscillon_backtest_2023-03.png)
 
 A state-weighted annual model (blending historical regime frequencies rather
 than naively extrapolating either extreme) puts the realistic long-run
 incremental yield in the low single-digit basis points per year at scale —
-explicitly *not* the acute-stress number, which is real but not
+explicitly _not_ the acute-stress number, which is real but not
 representative of steady state. Reporting only the best-case number here
 would have been a materially misleading research output; the range is the
 finding.
@@ -179,6 +183,6 @@ isn't telling you something. Stated plainly:
 
 ---
 
-*Full methodology, verification logs, and reproducible commands are available
+_Full methodology, verification logs, and reproducible commands are available
 in the accompanying repository (`BACKTEST.md`, `BACKTEST_AUDIT.md`, and the
-`scripts/` directory).*
+`scripts/` directory)._
