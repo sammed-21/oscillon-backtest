@@ -5,6 +5,25 @@ rigor behind this project, prepared for technical review._
 
 ---
 
+## Executive summary
+
+Oscillon studies whether oracle-aware dynamic fees reduce LP losses when
+stablecoin pool prices lag external reference prices. Across seven real
+pools, the effect is highly mechanism-dependent: mature fiat-backed pairs
+show little room for improvement, while USDe/USDT shows materially lower
+static-fee LP capture. On a frozen-parameter out-of-sample test, LP capture
+improved from 50.5% to 73.6%. The result is a backtest, not a live
+performance claim, and fixed-volume assumptions mean routing response
+remains an open question.
+
+**This is a historical, fixed-tape counterfactual analysis.** It replays
+real historical swaps under a different fee schedule; it is not a
+measurement of live production performance, not a guarantee of future
+yield, and not evidence that trading volume or routing behavior stays
+unchanged once fees actually change (see §4).
+
+---
+
 ## 1. What this research answers
 
 Stablecoin AMM pools leak value to arbitrageurs during depegs — a specialized
@@ -29,10 +48,13 @@ answer three questions a quant researcher is actually paid to answer, not just
   **Feed Registry** contract when a feed wasn't discoverable through the
   public listing — i.e., verifying oracle existence at the protocol level
   rather than trusting a website's index.
-- Seven independent asset pairs spanning three distinct peg-maintenance
-  mechanisms (fiat/crypto-collateralized, delta-neutral synthetic, legacy
+- **Seven distinct real pools**, spanning three peg-maintenance mechanisms
+  (fiat/crypto-collateralized, delta-neutral synthetic, legacy
   fractional-algorithmic) and two chains, to separate "mechanism-driven
-  finding" from "one lucky pool."
+  finding" from "one lucky pool." One of the seven (USDC/USDT) is examined
+  under three separate views — its calm regime, a historical acute-stress
+  window, and an alternate-oracle-leg counterfactual — bringing the total
+  exhibit count in Appendix A to nine views total, not nine independent pools.
 
 ### 2.2 Data integrity — a four-stage verification pass, applied to every dataset
 
@@ -59,6 +81,11 @@ something calibrated on the data being tested. To confirm the headline result
 wasn't an artifact of the specific window studied, the largest single-asset
 dataset was split chronologically into a training period and a strictly
 later, disjoint test period, with **zero parameter changes** between the two:
+
+**LP capture**, used throughout this document, is the share of the available
+depeg arbitrage spread that liquidity providers keep as fee income rather
+than losing to arbitrageurs — 100% means LPs capture the full spread, 0%
+means arbitrageurs take all of it.
 
 | Period                        | Static-fee LP capture | Dynamic-fee LP capture | Improvement |
 | ----------------------------- | --------------------- | ---------------------- | ----------- |
