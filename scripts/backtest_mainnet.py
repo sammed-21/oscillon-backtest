@@ -270,6 +270,8 @@ def build_timeline_chart(
     timeline: pd.DataFrame,
     chart_out: str,
     show_chart: bool,
+    oracle_asset: str = "USDC",
+    oracle_source_label: str = "Chainlink",
 ) -> None:
     """Depeg and fee (bps) vs timestamp — minute-level from prepared data."""
     ts = pd.to_datetime(timeline["timestamp"])
@@ -280,7 +282,7 @@ def build_timeline_chart(
     axes[0].plot(ts, dev, color="#E85D04", linewidth=0.8, alpha=0.9)
     axes[0].axhline(7, color="orange", linestyle=":", alpha=0.6, label="7 bps threshold")
     axes[0].set_ylabel("Oracle depeg (bps)")
-    axes[0].set_title("USDC depeg over time (Chainlink, matched per minute)")
+    axes[0].set_title(f"{oracle_asset} depeg over time ({oracle_source_label}, matched per minute)")
     axes[0].legend(loc="upper right", fontsize=8)
     axes[0].grid(True, alpha=0.3)
 
@@ -405,7 +407,15 @@ def main() -> None:
     Path(args.timeline_csv).parent.mkdir(parents=True, exist_ok=True)
     timeline.to_csv(args.timeline_csv, index=False)
     print(f"Timeline data saved: {args.timeline_csv} ({len(timeline):,} rows)")
-    build_timeline_chart(timeline, chart_out=args.timeline_out, show_chart=args.show_chart)
+    is_pool_fallback = (swaps["oracle_price"] == swaps["pool_price"]).all() if "pool_price" in swaps.columns else False
+    oracle_source_label = "pool price, no independent oracle" if is_pool_fallback else "Chainlink"
+    build_timeline_chart(
+        timeline,
+        chart_out=args.timeline_out,
+        show_chart=args.show_chart,
+        oracle_asset=oracle_asset,
+        oracle_source_label=oracle_source_label,
+    )
 
     pool_address = str(swaps["pool_address"].iloc[0]) if "pool_address" in swaps.columns else ""
     is_deployed_usdc_usdt = pool_address.lower() == "0x3416cf6c708da44db2624d63ea0aaef7113527c6"

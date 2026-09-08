@@ -87,7 +87,7 @@ value a static fee already leaves on the table:
 | Delta-neutral synthetic dollar                             | ~2–8 bps       | 50–99%                |
 | Legacy fractional-algorithmic, no longer actively defended | ~77 bps        | 7%                    |
 
-![Cross-asset deviation and static-fee capture across 7 real pools](output/cross_asset_summary.png)
+![Cross-asset deviation and static-fee capture across 7 real pools](output-public/cross_asset_summary.png)
 
 **Conclusion, stated the way a research desk would want it stated:** a
 uniform dynamic-fee design is close to redundant on mature, tightly-pegged
@@ -106,7 +106,7 @@ The same mechanism, same asset, same fee curve:
 | Acute stress event (single historical depeg episode) | 14.8%          | 33–40%              |
 | Calm baseline period                                 | 97.8%          | 99.9%               |
 
-![March 2023 acute stress backtest: fee curves, LVR distribution, cumulative LP income, and capture by market condition](output/oscillon_backtest_2023-03.png)
+![March 2023 acute stress backtest: fee curves, LVR distribution, cumulative LP income, and capture by market condition](output-public/oscillon_backtest_2023-03.png)
 
 A state-weighted annual model (blending historical regime frequencies rather
 than naively extrapolating either extreme) puts the realistic long-run
@@ -180,6 +180,73 @@ isn't telling you something. Stated plainly:
 - **Communicating uncertainty honestly**: ranges and regime-dependence
   reported instead of a single flattering number, limitations stated before
   being asked.
+
+---
+
+## Appendix A: Per-Asset Backtest Exhibits
+
+Every exhibit below is generated directly from the verified datasets behind
+the tables above — no manual editing, no cherry-picked windows. Each pairing
+shows the same two views a research desk would want side by side: the
+**backtest summary** (fee curves, LVR distribution, cumulative LP income, and
+capture by market condition) and the **time-series view** (raw deviation,
+fee response, and remaining arbitrage gap, minute by minute). Ordered from
+calmest to most volatile, matching the spectrum finding in §3.1.
+
+### AUSD/USDC (Monad) — avg. deviation 0.74 bps, static capture 100.0%
+
+![AUSD/USDC backtest summary](output-public/oscillon_backtest_ausd_usdc_monad.png)
+![AUSD/USDC depeg and fee timeline](output-public/depeg_fee_timeline_ausd_usdc_monad.png)
+
+### PYUSD/USDS — avg. deviation 1.01 bps, static capture 100.0%
+
+![PYUSD/USDS backtest summary](output-public/oscillon_backtest_pyusd_usds_oracle.png)
+![PYUSD/USDS depeg and fee timeline](output-public/depeg_fee_timeline_pyusd_usds_oracle.png)
+
+### USDe/USDC — avg. deviation 1.85 bps, static capture 99.4%
+
+![USDe/USDC backtest summary](output-public/oscillon_backtest_usde_usdc.png)
+![USDe/USDC depeg and fee timeline](output-public/depeg_fee_timeline_usde_usdc.png)
+
+### USDC/USDT, calm regime — avg. deviation 2.18 bps, static capture 97.8%
+
+![USDC/USDT calm-regime backtest summary](output-public/oscillon_backtest_usdc_usdt_calm.png)
+![USDC/USDT calm-regime depeg and fee timeline](output-public/depeg_fee_timeline_usdc_usdt_calm.png)
+
+### USDS/USDT — avg. deviation 2.61 bps, static capture 98.4%
+
+![USDS/USDT backtest summary](output-public/oscillon_backtest_usds_usdt_oracle.png)
+![USDS/USDT depeg and fee timeline](output-public/depeg_fee_timeline_usds_usdt_oracle.png)
+
+### USDe/USDT — avg. deviation 8.09 bps, static capture 50.5%
+
+![USDe/USDT backtest summary](output-public/oscillon_backtest_usde_usdt_oracle.png)
+![USDe/USDT depeg and fee timeline](output-public/depeg_fee_timeline_usde_usdt_oracle.png)
+
+### FRAX/USDC — avg. deviation 77.24 bps, static capture 7.3%
+
+The outlier of the entire study: a legacy, no-longer-actively-defended
+algorithmic peg sustaining 60–115 bps of deviation for months at a time, not
+spiking briefly and reverting.
+
+![FRAX/USDC backtest summary](output-public/oscillon_backtest_frax_usdc_oracle.png)
+![FRAX/USDC depeg and fee timeline](output-public/depeg_fee_timeline_frax_usdc_oracle.png)
+
+### USDC/USDT, acute stress event — static capture 14.8%, dynamic-fee capture 33–40%
+
+The single-episode exhibit behind the regime-sensitivity finding in §3.2.
+
+![USDC/USDT stress backtest summary](output-public/oscillon_backtest_2023-03.png)
+![USDC/USDT stress depeg and fee timeline](output-public/depeg_fee_timeline_usdc_usdt_stress.png)
+
+### USDC/USDT, alternate oracle leg (counterfactual)
+
+Same pool, same period, but classifying deviation against the USDT side of
+the pair instead of the USDC side actually used in production — included for
+completeness, not as a second production result. Kept clearly labeled as a
+counterfactual per the limitations in §4.
+
+![USDC/USDT alternate-oracle-leg timeline (counterfactual)](output-public/depeg_fee_timeline_usdt_leg_counterfactual.png)
 
 ---
 
