@@ -1,0 +1,17 @@
+Pool initialized 2026-07-17 23:24:59.000 UTC at tick -276325; fetching 2026-07-17 -> 2026-09-21
+  [swaps] chunk 1/10 2026-07-17..2026-07-23: 2429 rows
+  [swaps] chunk 2/10 2026-07-24..2026-07-30: 4879 rows
+  [swaps] chunk 3/10 2026-07-31..2026-08-06: 4068 rows
+  [swaps] chunk 4/10 2026-08-07..2026-08-13: 2438 rows
+  [swaps] chunk 5/10 2026-08-14..2026-08-20: 3857 rows
+  [swaps] chunk 6/10 2026-08-21..2026-08-27: 2482 rows
+  [swaps] chunk 7/10 2026-08-28..2026-09-03: 2264 rows
+  [swaps] chunk 8/10 2026-09-04..2026-09-10: 2860 rows
+  [swaps] chunk 9/10 2026-09-11..2026-09-17: 2108 rows
+  [swaps] chunk 10/10 2026-09-18..2026-09-21: 1056 rows
+  [modify] chunk 1/3 2026-07-17..2026-08-15: 395 rows
+  [modify] chunk 2/3 2026-08-16..2026-09-14: 934 rows
+  [modify] chunk 3/3 2026-09-15..2026-09-21: 337 rows
+swaps: fetched 28441, unique 28441, ground truth now 28441, diff +0
+modify: fetched 1666, unique 1666, ground truth now 1666, diff +0
+Saved to data/oscillon_test_2/usde_usdc

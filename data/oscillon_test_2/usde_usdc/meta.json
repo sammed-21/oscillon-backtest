@@ -1,0 +1,23 @@
+{
+  "pool_id": "0x56fc29b86900aa0afa6e20b020429bffba1105cfb45070492c67529b46eb48c1",
+  "chain": "ethereum",
+  "start": "2026-07-17",
+  "end": "2026-09-21",
+  "init": {
+    "blk": "25555684",
+    "currency0": "0x4c9edd5852cd905f086c759e8383e09bff1e68b3",
+    "currency1": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    "fee": "25",
+    "idx": "535",
+    "sqrtPriceX96": "79224306130848112672356",
+    "tick": "-276325",
+    "tickSpacing": "1",
+    "ts": "2026-07-17 23:24:59.000 UTC"
+  },
+  "swaps_rows": 28441,
+  "swaps_dropped_dupes": 0,
+  "swaps_ground_truth": 28441,
+  "modify_rows": 1666,
+  "modify_dropped_dupes": 0,
+  "modify_ground_truth": 1666
+}

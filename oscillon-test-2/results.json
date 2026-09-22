@@ -1,0 +1,171 @@
+{
+  "params": {
+    "vanilla_fee": 1.0,
+    "k": 50.0,
+    "band_bps": 300.0,
+    "eta": 2.0
+  },
+  "pools": {
+    "usde_usdt": {
+      "qa": {
+        "swaps": 122019,
+        "positions": 5368,
+        "first_swap": "2025-10-02 02:10:23",
+        "last_swap": "2026-09-21 12:35:59",
+        "active_liquidity_match_rate": 1.0,
+        "negative_liquidity_events": 0,
+        "swaps_vs_ground_truth_diff": 0,
+        "tvl_usd_by_month_median": {
+          "2025-10": 30390704.91051171,
+          "2025-11": 19905330.17797517,
+          "2025-12": 19466606.15428122,
+          "2026-01": 20428025.202307764,
+          "2026-02": 16315089.700100027,
+          "2026-03": 7104220.650253092,
+          "2026-04": 3545034.5466247154,
+          "2026-05": 3332413.258489781,
+          "2026-06": 2968138.7139915316,
+          "2026-07": 2308606.5742660305,
+          "2026-08": 1532979.8763901223,
+          "2026-09": 786871.1233101969
+        }
+      },
+      "vanilla": {
+        "mean_abs_skew": 0.19331682561640773,
+        "median_abs_skew": 0.1817525016965012,
+        "p95_abs_skew": 0.4130191389784029,
+        "pct_swaps_beyond_band": 0.9223727452282021,
+        "time_weighted_abs_skew": 0.18493240171518344,
+        "mean_excess_inventory_usd": 2162908.118768128,
+        "final_token0_share": 0.23291475307830173,
+        "volume_retained_count": 1.0,
+        "volume_retained_usd": 1.0,
+        "hook_fee_revenue_usd": 951845.7424429413,
+        "vanilla_fee_revenue_usd": 951845.7424429413,
+        "clipped_swaps": 0
+      },
+      "A_literal": {
+        "swaps_where_fee_exceeds_vanilla": 0,
+        "max_fee_bps": 1.0,
+        "swaps_worsening_beyond_band": 49708,
+        "share_of_swaps_that_would_be_taxed_if_cap_removed": 0.40737917865250495
+      },
+      "B_gate": {
+        "mean_abs_skew": 0.049613943373272976,
+        "median_abs_skew": 0.03297941345956035,
+        "p95_abs_skew": 0.15628821495779427,
+        "pct_swaps_beyond_band": 0.5804669764544866,
+        "time_weighted_abs_skew": 0.04755901589137096,
+        "mean_excess_inventory_usd": 498634.02313580713,
+        "final_token0_share": 0.580661170397495,
+        "volume_retained_count": 0.7457772969783394,
+        "volume_retained_usd": 0.7087821361862264,
+        "hook_fee_revenue_usd": 418048.66961646883,
+        "vanilla_fee_revenue_usd": 951845.7424429413,
+        "clipped_swaps": 257
+      },
+      "C_elastic": {
+        "mean_abs_skew": 0.05490907077156786,
+        "median_abs_skew": 0.04293543556996393,
+        "p95_abs_skew": 0.15193074777119273,
+        "pct_swaps_beyond_band": 0.649136609872233,
+        "time_weighted_abs_skew": 0.052850056600149346,
+        "mean_excess_inventory_usd": 568825.7982871061,
+        "final_token0_share": 0.558714375126875,
+        "volume_retained_count": 0.796572282254652,
+        "volume_retained_usd": 0.7707027500453127,
+        "hook_fee_revenue_usd": 534239.7373971759,
+        "vanilla_fee_revenue_usd": 951845.7424429413,
+        "clipped_swaps": 232
+      },
+      "robustness_first_half": {
+        "n_swaps": 65430,
+        "vanilla_mean_abs_skew": 0.1760635903058038,
+        "B_mean_abs_skew": 0.04045745635242982,
+        "B_volume_retained_usd": 0.7067194227833082
+      },
+      "robustness_second_half": {
+        "n_swaps": 56589,
+        "vanilla_mean_abs_skew": 0.21326556452985052,
+        "B_mean_abs_skew": 0.05770472174413381,
+        "B_volume_retained_usd": 0.7232837149318214
+      }
+    },
+    "usde_usdc": {
+      "qa": {
+        "swaps": 28441,
+        "positions": 631,
+        "first_swap": "2026-07-17 23:36:11",
+        "last_swap": "2026-09-21 12:25:23",
+        "active_liquidity_match_rate": 1.0,
+        "negative_liquidity_events": 0,
+        "swaps_vs_ground_truth_diff": 0,
+        "tvl_usd_by_month_median": {
+          "2026-07": 600426.0752043016,
+          "2026-08": 811728.6649553782,
+          "2026-09": 952764.6330563201
+        }
+      },
+      "vanilla": {
+        "mean_abs_skew": 0.19736799649522863,
+        "median_abs_skew": 0.17243031765766093,
+        "p95_abs_skew": 0.44697001545242354,
+        "pct_swaps_beyond_band": 0.8925494884146127,
+        "time_weighted_abs_skew": 0.19362413514425572,
+        "mean_excess_inventory_usd": 181098.31588560084,
+        "final_token0_share": 0.3963330320357621,
+        "volume_retained_count": 1.0,
+        "volume_retained_usd": 1.0,
+        "hook_fee_revenue_usd": 74722.36829375492,
+        "vanilla_fee_revenue_usd": 74722.36829375492,
+        "clipped_swaps": 0
+      },
+      "A_literal": {
+        "swaps_where_fee_exceeds_vanilla": 0,
+        "max_fee_bps": 1.0,
+        "swaps_worsening_beyond_band": 8845,
+        "share_of_swaps_that_would_be_taxed_if_cap_removed": 0.31099469076333464
+      },
+      "B_gate": {
+        "mean_abs_skew": 0.07550202248211971,
+        "median_abs_skew": 0.0498206076147415,
+        "p95_abs_skew": 0.23184603593933067,
+        "pct_swaps_beyond_band": 0.7528919517597834,
+        "time_weighted_abs_skew": 0.07261356586672732,
+        "mean_excess_inventory_usd": 70045.91951607558,
+        "final_token0_share": 0.4272878883239198,
+        "volume_retained_count": 0.7141450722548434,
+        "volume_retained_usd": 0.7479534741392869,
+        "hook_fee_revenue_usd": 31160.120179629397,
+        "vanilla_fee_revenue_usd": 74722.36829375492,
+        "clipped_swaps": 146
+      },
+      "C_elastic": {
+        "mean_abs_skew": 0.0776685971211576,
+        "median_abs_skew": 0.060141139574032665,
+        "p95_abs_skew": 0.2141220259015595,
+        "pct_swaps_beyond_band": 0.7661826236770859,
+        "time_weighted_abs_skew": 0.07491403715455694,
+        "mean_excess_inventory_usd": 71821.6454087107,
+        "final_token0_share": 0.44864327190109415,
+        "volume_retained_count": 0.7732500198357866,
+        "volume_retained_usd": 0.7978360397473196,
+        "hook_fee_revenue_usd": 37770.93576675409,
+        "vanilla_fee_revenue_usd": 74722.36829375492,
+        "clipped_swaps": 121
+      },
+      "robustness_first_half": {
+        "n_swaps": 14220,
+        "vanilla_mean_abs_skew": 0.18769312024121962,
+        "B_mean_abs_skew": 0.07248975158978167,
+        "B_volume_retained_usd": 0.7625329994336979
+      },
+      "robustness_second_half": {
+        "n_swaps": 14221,
+        "vanilla_mean_abs_skew": 0.20704219242603578,
+        "B_mean_abs_skew": 0.07884255794099466,
+        "B_volume_retained_usd": 0.7456469043412436
+      }
+    }
+  }
+}
